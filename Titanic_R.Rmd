@@ -8,9 +8,14 @@ library(SnowballC) # Removes stemming words
 library(wordcloud)
 library(tidyverse)
 library(gmodels) # Uses crosstab function
+library('mice') # imputation
+library(VIM)  # Plots missing data
+library(gridExtra) #Plotting ggplots side by side
+library(ggpubr) # Nice Theme
 
 library(C50) # Package that includes the decision tree algorithm
 library(e1071) # Naive Bayes package
+library('randomForest') # Random Forest
 ```
 
 
@@ -78,7 +83,8 @@ ggplot(aes(x=Age), data = data_tit)+
 ```{r}
 ggplot(aes(x=Age, y=Fare, colour = factor(Survived)), data=data_tit)+
   geom_point(alpha = 0.8)+
-  facet_grid(. ~Sex)
+  facet_grid(. ~Sex)+
+  theme_minimal()
 ```
 
 ```{r}
@@ -98,12 +104,70 @@ table(data_tit$Title, data_tit$Sex)
 
 ```{r}
 ggplot(aes(x=Title, fill=factor(Survived)), data=data_tit)+
-  geom_bar()
+  geom_bar()+
+  theme_classic()
 ```
 
 ```{r}
-
+data_tit$F_Size <-  data_tit$SibSp + data_tit$Parch +1
+head(data_tit, 2)
 ```
 
+
+```{r}
+ggplot(aes(x=F_Size, fill=factor(Survived)),data=data_tit)+
+  geom_bar(position = "dodge")+
+  xlab("Family Size")+
+  theme_pubclean()
+```
+
+```{r}
+data_tit$F_Size_D[data_tit$F_Size == 1] <- 'Singles'
+data_tit$F_Size_D[data_tit$F_Size > 1 & data_tit$F_Size < 5] <- 'Small'
+data_tit$F_Size_D[data_tit$F_Size >= 5] <- 'Large'
+table(data_tit$F_Size_D, data_tit$Survived)
+```
+
+
+```{r}
+mosaicplot(table(data_tit$F_Size_D, data_tit$Survived), main = "Family Survival on the Titanic", color = TRUE, shade=TRUE)
+```
+
+```{r}
+nulls <- function(x){
+  sum(is.na(x))
+}
+
+sapply(data_tit, nulls)
+```
+
+```{r}
+aggr_plot <- aggr(data_tit, col=c('navyblue','red'), numbers=TRUE, sortVars=TRUE, labels=names(data_tit), cex.axis=.6, gap=4, ylab=c("Histogram of missing data","Pattern"))
+```
+
+```{r}
+tempData <- mice(data_tit,m=5,maxit=50,meth='rf',seed=129)
+summary(tempData)
+```
+
+```{r}
+mice_output <- complete(tempData)
+```
+
+
+```{r}
+plot1 <- ggplot(aes(x=Age), data=data_tit)+
+  geom_histogram(aes(y = (..density..)), fill='darkgreen', col='white')+
+  ylim(0, 0.04)+
+  theme_pubclean()
+
+plot2 <- ggplot(aes(x=Age), data=mice_output)+
+  geom_histogram(aes(y = (..density..)), fill='lightgreen', col='white')+
+  ylim(0, 0.04)+
+  theme_pubclean()
+
+grid.arrange(plot1, plot2, ncol=2)
+```
+> Study the mice imputation and then cotinou on her analysis then the book
 
 > RUN K-NN, NAIVE BAYES and DECISION TREE ALGORITHMS
