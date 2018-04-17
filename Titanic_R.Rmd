@@ -1,0 +1,109 @@
+```{r}
+library(dplyr)
+library(ggplot2) # Data visualization
+library(readr) # CSV file I/O, e.g. the read_csv function
+library(tm) # text mining in R
+library(knitr) # Convert to html
+library(SnowballC) # Removes stemming words
+library(wordcloud)
+library(tidyverse)
+library(gmodels) # Uses crosstab function
+
+library(C50) # Package that includes the decision tree algorithm
+library(e1071) # Naive Bayes package
+```
+
+
+```{r}
+data <- read.csv('/Users/wafic/Downloads/data/titanic_data.csv', stringsAsFactors = FALSE)
+```
+
+```{r}
+dim(data)
+```
+
+```{r}
+str(data)
+```
+
+```{r}
+# Drop the Passenger ID and the Ticket as they share no pattersn between passengers
+data_tit <- select(data,-PassengerId, -Ticket)
+dim(data_tit)
+```
+
+
+```{r}
+head(data_tit,2)
+```
+
+```{r}
+data_tit$Survived <- factor(data_tit$Survived)
+prop.table(table(data_tit$Survived))*100
+```
+
+```{r}
+prop.table(table(data_tit$Embarked))*100
+```
+
+```{r}
+prop.table(table(data_tit$Sex))*100
+```
+
+```{r}
+summary(data_tit$Fare)
+```
+
+```{r}
+summary(data_tit$Age)
+```
+
+
+```{r}
+summary(data_tit)
+```
+
+
+```{r}
+ggplot(aes(x=Fare), data=data_tit)+
+  geom_histogram()
+```
+
+```{r}
+ggplot(aes(x=Age), data = data_tit)+
+  geom_histogram()
+```
+
+
+```{r}
+ggplot(aes(x=Age, y=Fare, colour = factor(Survived)), data=data_tit)+
+  geom_point(alpha = 0.8)+
+  facet_grid(. ~Sex)
+```
+
+```{r}
+data_tit$Title <- gsub("(.*, )|(\\..*)", '',data_tit$Name)
+table(data_tit$Title, data_tit$Sex)
+```
+
+```{r}
+rare_titles <- c("Capt", "Col", "Don", "Dr", "Jonkheer", "Lady", "Major", "Rev", "Sir", "the Countess")
+data_tit$Title[data_tit$Title == 'Mme'] <- 'Mrs'
+data_tit$Title[data_tit$Title == 'Mlle'] <- 'Miss'
+data_tit$Title[data_tit$Title == 'Ms'] <- 'Miss'
+data_tit$Title[data_tit$Title %in% rare_titles] <- 'Rare'
+table(data_tit$Title, data_tit$Sex)
+```
+
+
+```{r}
+ggplot(aes(x=Title, fill=factor(Survived)), data=data_tit)+
+  geom_bar()
+```
+
+```{r}
+
+```
+
+
+> RUN K-NN, NAIVE BAYES and DECISION TREE ALGORITHMS

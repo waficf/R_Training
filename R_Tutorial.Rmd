@@ -1,0 +1,403 @@
+```{r}
+library(dplyr)
+library(ggplot2) # Data visualization
+library(readr) # CSV file I/O, e.g. the read_csv function
+library(tm) # text mining in R
+library(knitr) # Convert to html
+library(SnowballC) # Removes stemming words
+library(wordcloud)
+library(tidyverse)
+library(e1071) # Naive Bayes package
+library(gmodels) # Uses crosstab function
+library(C50) # Package that includes the decision tree algorithm
+```
+
+```{r}
+# On vectors before the below
+
+# Poker and roulette winnings from Monday to Friday:
+poker_vector <- c(140, -50, 20, -120, 240)
+roulette_vector <- c(-24, -50, 100, -350, 10)
+days_vector <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+names(poker_vector) <- days_vector
+names(roulette_vector) <- days_vector
+
+# Assign to total_daily how much you won/lost on each day
+total_daily <- (poker_vector+roulette_vector)
+total_daily
+
+######################################VECTORS#############################################
+
+# Poker and roulette winnings from Monday to Friday:
+poker_vector <- c(140, -50, 20, -120, 240)
+roulette_vector <- c(-24, -50, 100, -350, 10)
+days_vector <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+names(poker_vector) <- days_vector
+names(roulette_vector) <- days_vector
+
+# Which days did you make money on poker?
+selection_vector <- poker_vector > 0
+
+# Select from poker_vector these days
+poker_winning_days <- poker_vector[selection_vector]
+poker_winning_days
+
+#######################################DATFRAMES#############################################
+
+# The planets_df data frame from the previous exercise is pre-loaded
+
+# Print out diameter of Mercury (row 1, column 3)
+planets_df[1,3]
+
+# Print out data for Mars (entire fourth row)
+planets_df[4,]
+
+# Select first 5 values of diameter column
+planets_df[1:5, 'diameter']
+
+# Adapt the code to select all columns for planets with rings
+planets_df[rings_vector, ]
+
+
+```
+
+
+
+# K-NN ALGORITHM FOR CLASSIFICATION PROBLEM
+
+```{r}
+train_data <- read.csv("train.csv", na.strings=c("","NA"), as.is=TRUE)
+test_data <- read.csv("test.csv", na.strings=c("","NA"), as.is=TRUE)
+full <- bind_rows(train_data, test_data)
+```
+
+```{r}
+str(full)
+```
+
+```{r}
+summary(full$Age)
+summary(full[c('Age', 'Fare')])
+```
+
+> There is a huge difference between the min and Q1 and Q3 and max which 
+indicates that there is a spread of data for people age above 39 and below 21.
+On the other hand we can see that between Q1 and Q3 there is a small gap showing
+a more tight group around the center.
+
+```{r}
+boxplot(full$Age, ylab='Age', main='Box Plot of Age')
+```
+
+```{r}
+hist(full$Fare, main='Fare Histogram', ylab='Fare')
+```
+
+
+```{r}
+hist(full$Age, main='Age Histogram', ylab='Age', breaks=10)
+```
+
+```{r}
+model_tbl <- table(full$Sex)
+prop.table(model_tbl)
+```
+
+```{r}
+plot(x = full$Age, y = full$Fare, xlab = 'Age', ylab='Fare')
+```
+
+```{r}
+#CrossTable(x = full$Sex, y = full$Cabin)
+```
+
+> This is a machine learning classification algorithm to detect if a tumor is
+> malignant or bening us K Nearest Neighbor
+
+```{r}
+wbc <- read.csv('wisc_bc_data.csv')
+```
+
+
+```{r}
+str(wbc)
+```
+```{r}
+wbc <- wbc[-1]
+```
+
+```{r}
+table(wbc$diagnosis)
+```
+
+```{r}
+wbc$diagnosis <- factor(wbc$diagnosis, levels = c('B', 'M'), labels = c('Bening', 'Malignant'))
+```
+
+```{r}
+round(prop.table(table(wbc$diagnosis))*100, 1)
+```
+
+```{r}
+summary(wbc[c('radius_mean', 'area_mean', 'smoothness_mean')])
+```
+
+```{r}
+normalize <- function(x) {
+  return (x - min(x)) / (max(x) - min(x))
+}
+```
+
+
+```{r}
+wbc_n <- as.data.frame(lapply(wbc[2:31], normalize))
+```
+
+```{r}
+summary(wbc_n[c('radius_mean', 'area_mean', 'smoothness_mean')])
+```
+
+```{r}
+wbc_train <- wbc_n[1:469,]
+wbc_test <- wbc_n[470:569,]
+
+wbc_train_labels <- wbc[1:469, 1]
+wbc_test_labels <- wbc[470:569, 1]
+```
+
+
+```{r}
+p <- knn(train = wbc_train, test = wbc_test, cl = wbc_train_labels, k=3)
+```
+
+```{r}
+CrossTable(x=wbc_test_labels, y=p, prop.chisq = FALSE)
+```
+
+
+```{r}
+# Scaling extreme values using the z-score
+wbc_z <- as.data.frame(scale(wbc[-1]))
+summary(wbc_z$area_mean)
+```
+
+```{r}
+wbc_train <- wbc_z[1:469,]
+wbc_test <- wbc_z[470:569,]
+
+wbc_train_labels <- wbc[1:469, 1]
+wbc_test_labels <- wbc[470:569, 1]
+```
+
+```{r}
+p<- knn(train = wbc_train, test = wbc_test, cl= wbc_train_labels, k=5)
+CrossTable(x=p, y=wbc_test_labels, prop.chisq = FALSE)
+```
+
+
+# NAIVE BAYES ALGORITHM FOR TEXT PROCESSING
+
+```{r}
+sms_raw <- read.csv('sms_spam.csv', stringsAsFactors = FALSE)
+```
+
+```{r}
+str(sms_raw)
+```
+
+```{r}
+sms_raw$type <- factor(sms_raw$type)
+str(sms_raw$type)
+```
+
+```{r}
+table(sms_raw$type)
+```
+
+```{r}
+sms_corpus <- VCorpus(VectorSource(sms_raw$text))
+print(sms_corpus)
+```
+
+```{r}
+inspect(sms_corpus[1:2])
+```
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus, content_transformer(tolower))
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeNumbers)
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeWords, stopwords())
+sms_corpus_clean <- tm_map(sms_corpus_clean, removePunctuation)
+```
+
+
+```{r}
+# instead of the above we can use the below function
+replace_punctuation <- function(x){
+  gsub("[[:punct:]]+", " ", x)
+}
+```
+
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus_clean, stemDocument)
+```
+
+```{r}
+as.character(sms_corpus_clean[[110]])
+```
+
+```{r}
+sms_corpus_clean <- tm_map(sms_corpus_clean, stripWhitespace)
+```
+
+
+```{r}
+# This is the sparce matrix and it includes 6,500 terms
+sms_dtm <- DocumentTermMatrix(sms_corpus_clean)
+sms_dtm
+```
+
+```{r}
+sms_dtm_train <- sms_dtm[1:4169,]
+sms_dtm_test <- sms_dtm[4170:5559,]
+
+sms_train_labels <- sms_raw[1:4169,]$type
+sms_test_labels <- sms_raw[4170:5559,]$type
+```
+
+```{r}
+prop.table(table(sms_test_labels))
+```
+
+```{r}
+wordcloud(sms_corpus_clean, min.freq = 50, random.order = FALSE)
+```
+
+```{r}
+# The final step in the data preparation process is to transform the sparse matrix into a data structure that can be used to train a Naive Bayes classi er. Currently, the sparse matrix includes over 6,500 features; this is a feature for every word that appears in at least one SMS message. It's unlikely that all of these are useful for classi cation. To reduce the number of features, we will eliminate any word that appear in less than  ve SMS messages, or in less than about 0.1 percent of the records in the training data
+
+sms_freq_words <- findFreqTerms(sms_dtm_train, 5)
+str(sms_freq_words)
+```
+
+```{r}
+sms_dtm_freq_train <- sms_dtm_train[, sms_freq_words]
+sms_dtm_freq_test <- sms_dtm_test[, sms_freq_words]
+str(sms_dtm_freq_train)
+```
+
+```{r}
+convert_counts <- function(x){
+  x <- ifelse(x > 0, 'Yes', 'No')
+}
+```
+
+```{r}
+sms_train <- apply(sms_dtm_freq_train, MARGIN = 2, convert_counts)
+sms_test <- apply(sms_dtm_freq_test, MARGIN = 2, convert_counts)
+
+```
+
+```{r}
+sms_classifier <- naiveBayes(sms_train, sms_train_labels)
+```
+
+```{r}
+sms_test_pred <- predict(sms_classifier, sms_test)
+```
+
+```{r}
+CrossTable(sms_test_pred, sms_test_labels, 
+           prop.chisq = FALSE, prop.t = FALSE,
+           dnn = c('predicted', 'actual'))
+```
+
+# DECISION TREE ALGORITHM FOR CREDIT APPROVAL PROCESS
+
+```{r}
+credit <- read.csv('credit.csv', stringsAsFactors = FALSE)
+head(credit, 5)
+```
+
+```{r}
+str(credit)
+```
+
+```{r}
+table(credit$checking_balance)
+```
+
+```{r}
+table(credit$savings_balance)
+```
+
+```{r}
+summary(credit$amount)
+```
+
+```{r}
+summary(credit$months_loan_duration)
+```
+```{r}
+table(credit$default)
+```
+
+```{r}
+set.seed(123)
+train_sample <- sample(1000, 900)
+
+credit_train <- credit[train_sample, ]
+credit_test <- credit[-train_sample, ]
+```
+
+```{r}
+round(prop.table(table(credit_train$default))*100, 1)
+```
+
+```{r}
+defaults <- function(x){
+  x <- ifelse(x==1, 'Yes', 'No')
+}
+```
+
+
+```{r}
+# CONVRTED THE DEFAULT TO FACTORS BY APPLYING THE ABOVE FUNCTION
+# SINCE LAPPLY RETURNS A LIST, IT IS BEST TO USE DATA.FRAME BEFORE THE FUNCTION
+credit_train <- data.frame(credit_train[1:16], lapply(credit_train[17], defaults))
+str(credit_train)
+table(credit_train$default)
+```
+
+
+# CHECK IF YOU CAN APPLY THE ABOVE TO THE AMAZON DATA AS YOU NOW UNDERSTAND THE VECTOR AND THE LIST AND THE DATAFRAME IN R
+
+
+```{r}
+credit_train[-17] # this includes all the predictor varibales except the column 17
+```
+
+
+```{r}
+credit_model <- C5.0(credit_train[-17], credit_train$default)
+credit_model
+summary(credit_model)
+```
+
+```{r}
+credit_pred <- predict(credit_model, credit_test)
+```
+
+```{r}
+CrossTable(credit_test$default, credit_pred,
+             prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+             dnn = c('actual default', 'predicted default'))
+```
+
+```{r}
+matrix_dimensions <- list(c("no", "yes"), c("no", "yes"))
+names(matrix_dimensions) <- c('predicted', 'actual')
+matrix_dimensions
+```
+

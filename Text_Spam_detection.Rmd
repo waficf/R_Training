@@ -1,0 +1,105 @@
+
+
+
+```{r}
+library(ggplot2) # Data visualization
+library(readr) # CSV file I/O, e.g. the read_csv function
+library("dplyr")
+library(tm) # text mining in R
+library(class)
+library(knitr) # Convert to html
+library(SnowballC) # Removes stemming words
+library(wordcloud)
+```
+
+```{r}
+sms_data <- read.csv('SMSSpamCollection', sep="\t", header=FALSE, quote="", stringsAsFactors = FALSE)
+names(sms_data) <- c('type', 'text')
+str(sms_data)
+```
+
+
+```{r}
+sms_data$type <- as.factor(sms_data$type)
+str(sms_data)
+```
+
+
+```{r}
+kable(sms_data[1:8,])
+```
+
+
+```{r}
+# Reading few text sms to eyeball some patterns in spam text
+subset(sms_data[1:8, ], type=='spam')$text
+```
+
+```{r}
+prop.table(table(sms_data$type))
+```
+
+```{r}
+punct <- function(x){
+  gsub("[[:punct:]]", ' ', x)
+}
+
+sms_data_n <- punct(sms_data$text)
+```
+
+
+```{r}
+# Create Cuspos of available words and eye ball some messages
+sms_corpus <- VCorpus(VectorSource(sms_data_n))
+```
+
+
+```{r}
+# Data transformation includes cleaning numbers, stop words, whitespaces, ounctuations and others that might not 
+# be helpful in detecting patterns in data
+
+sms_corpus_clean <- tm_map(sms_corpus, removeNumbers)
+
+sms_corpus_clean <- tm_map(sms_corpus_clean, content_transformer(tolower))
+
+sms_corpus_clean <- tm_map(sms_corpus_clean, removeWords, stopwords('english'))
+
+sms_corpus_clean <- tm_map(sms_corpus_clean, stripWhitespace)
+
+sms_corpus_clean <- tm_map(sms_corpus_clean, stemDocument)
+
+as.character(sms_corpus_clean[[20]])
+```
+
+```{r}
+tdm <- DocumentTermMatrix(sms_corpus_clean)
+tdm
+```
+
+```{r}
+sms_dtm_train <- tdm[1:4169, ]
+sms_dtm_test <- tdm[1:4170, 5574,]
+
+sms_train_label <- sms_data[1:4169, ]$type
+sms_test_label <- sms_data[1:4170, 5574,]$type
+```
+
+```{r}
+wordcloud(sms_corpus_clean, max.words=50, random.order = FALSE)
+```
+
+```{r}
+spam <- subset(sms_data, type=='spam')
+ham <- subset(sms_data, type == 'ham')
+
+wordcloud(spam$text, max.words = 50)
+```
+
+```{r}
+wordcloud(ham$text, max.words = 50)
+```
+
+```{r}
+
+```
+

@@ -1,0 +1,138 @@
+
+```{r}
+library(ggplot2) # Data visualization
+library(readr) # CSV file I/O, e.g. the read_csv function
+library("dplyr")
+library(tm) # text mining in R
+library(knitr) # Convert to html
+library(SnowballC) # Removes stemming words
+library(wordcloud)
+library(tidyverse)
+library(e1071) # Naive Bayes package
+library(gmodels) # Uses crosstab function
+```
+
+
+```{r}
+data <- read.csv('Reviews.csv', stringsAsFactors = FALSE)
+```
+
+```{r}
+str(data)
+```
+
+```{r}
+head(data, 10)
+```
+
+```{r}
+dim(data)
+```
+
+
+```{r}
+useful_data <- select(data, Score, Summary, Text)
+str(useful_data)
+```
+
+```{r}
+sub_data <- useful_data[1:5000, ]
+str(sub_data)
+```
+
+
+```{r}
+sub_data$Score <- as.factor(sub_data$Score)
+str(sub_data)
+```
+
+```{r}
+kable(sub_data[1:6,])
+```
+
+```{r}
+prop.table(table(sub_data$Score))*100
+```
+
+```{r}
+levels(sub_data$Score)
+```
+
+
+```{r}
+curpos <- VCorpus(VectorSource(sub_data$Text))
+inspect(curpos[1:3])
+```
+
+```{r}
+as.character(curpos[[1]])
+```
+
+```{r}
+curpos_new <- tm_map(curpos, removeWords, stopwords('en'))
+
+curpos_new <- tm_map(curpos_new, removePunctuation)
+
+curpos_new <- tm_map(curpos_new, removeNumbers)
+
+curpos_new <- tm_map(curpos_new, stemDocument)
+
+curpos_new <- tm_map(curpos_new, content_transformer(tolower))
+```
+
+```{r}
+wordcloud(curpos_new, max.words = 50, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+```
+
+
+```{r}
+dtm <- DocumentTermMatrix(curpos_new)
+dtm
+```
+
+
+```{r}
+dtm_train <- dtm[1:3999, ]
+dtm_test <- dtm[4000:5000,]
+
+label_train <- sub_data[1:3999, ]$Score
+label_test <- sub_data[4000:5000, ]$Score
+```
+
+```{r}
+# A peek into the contents of the vector shows us that there are 2,721 terms appearing in at least five SMS messages:
+freq_words <- findFreqTerms(dtm_train, 5)
+str(freq_words)
+```
+
+```{r}
+dtm_freq_train <- dtm_train[, freq_words] # included only words with freq of 5 or more
+dtm_freq_test <- dtm_test[, freq_words]
+```
+
+```{r}
+counter <- function(x){
+  x <- ifelse(x > 0, 'Yes', 'No')
+}
+
+train <- apply(dtm_freq_train, 2, counter)
+test <- apply(dtm_freq_test, 2, counter)
+```
+
+
+```{r}
+classifier <- naiveBayes(train, label_train)
+```
+
+
+```{r}
+test_pred <- predict(classifier, test)
+```
+
+```{r}
+CrossTable(test_pred, label_test,
+           prop.chisq = FALSE, prop.t = FALSE,
+           dnn = c('predicted', 'actual'))
+```
+
+
