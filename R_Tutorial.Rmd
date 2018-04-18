@@ -371,9 +371,6 @@ table(credit_train$default)
 ```
 
 
-# CHECK IF YOU CAN APPLY THE ABOVE TO THE AMAZON DATA AS YOU NOW UNDERSTAND THE VECTOR AND THE LIST AND THE DATAFRAME IN R
-
-
 ```{r}
 credit_train[-17] # this includes all the predictor varibales except the column 17
 ```

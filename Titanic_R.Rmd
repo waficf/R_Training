@@ -235,11 +235,29 @@ trainIndex <- createDataPartition(data_tit$Survived, p=split, list=FALSE)
 train <- data_tit[trainIndex,]
 test <- data_tit[-trainIndex,]
 
-naive_classifier <- NaiveBayes(Survived~., data=train)
-
-naive_pred <- predict(naive_classifier, test[-1])
-
-confusionMatrix(naive_pred$class, test[,1])
+train_labels <- data_tit[trainIndex,]$Survived
+test_labels <- data_tit[-trainIndex,]$Survived
 ```
+
+```{r}
+# Naive Bayes Classifier
+naive_classifier <- naiveBayes(train, train_labels)
+naive_predictor <- predict(naive_classifier, test)
+
+CrossTable(naive_predictor, test_labels, 
+           prop.chisq = FALSE, prop.t = FALSE,
+           dnn = c('predicted', 'actual'))
+```
+
+
+```{r}
+# Decision Tree Classifier
+```
+
+
+
+
+
+
 
 
