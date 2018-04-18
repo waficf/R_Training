@@ -14,8 +14,10 @@ library(gridExtra) #Plotting ggplots side by side
 library(ggpubr) # Nice Theme
 
 library(C50) # Package that includes the decision tree algorithm
-library(e1071) # Naive Bayes package
+library(e1071) # Naive Bayes package (naiveBayes)
+library(klaR) # Another naive bayes package (NaiveBayes)
 library('randomForest') # Random Forest
+library(caret) # Splitting data including cross validation
 ```
 
 
@@ -146,14 +148,14 @@ aggr_plot <- aggr(data_tit, col=c('navyblue','red'), numbers=TRUE, sortVars=TRUE
 ```
 
 ```{r}
-tempData <- mice(data_tit,m=5,maxit=50,meth='rf',seed=129)
-summary(tempData)
+mice_mod <- mice(data_tit[, !names(data_tit) %in% c('Cabin','F_Size','Name','Survived')], method='rf',seed=129)
+summary(mice_mod)
 ```
 
 ```{r}
-mice_output <- complete(tempData)
+mice_output <- complete(mice_mod)
+dim(mice_output)
 ```
-
 
 ```{r}
 plot1 <- ggplot(aes(x=Age), data=data_tit)+
@@ -168,6 +170,76 @@ plot2 <- ggplot(aes(x=Age), data=mice_output)+
 
 grid.arrange(plot1, plot2, ncol=2)
 ```
-> Study the mice imputation and then cotinou on her analysis then the book
 
-> RUN K-NN, NAIVE BAYES and DECISION TREE ALGORITHMS
+```{r}
+data_tit$Age <- mice_output$Age
+sum(is.na(data_tit$Age))
+```
+
+```{r}
+ggplot(aes(x=Age, fill= factor(Survived)), data=data_tit)+
+  geom_histogram()+
+  facet_grid(.~Sex)+
+  theme_classic()
+```
+
+
+```{r}
+data_tit$Child[data_tit$Age < 18] <- 'Child'
+data_tit$Child[data_tit$Age >= 18] <- 'Adult'
+table(data_tit$Child, data_tit$Survived)
+```
+```{r}
+ggplot(aes(x=Age, fill=factor(Survived)), data=data_tit)+
+  geom_histogram()+
+  facet_grid(.~Child)
+```
+
+```{r}
+#subset(data_tit, Child == 'Adult' & Sex == 'female')
+data_tit$Mother <- 'Not Mother'
+data_tit$Mother[data_tit$Child == 'Adult' & data_tit$Sex == 'female' & data_tit$Parch > 0 & data_tit$Title != 'Miss'] <- 'Mother'
+
+table(data_tit$Mother, data_tit$Survived)
+```
+
+```{r}
+data_tit$Child <- factor(data_tit$Child)
+data_tit$Mother <- factor(data_tit$Mother)
+```
+
+```{r}
+sapply(data_tit, nulls)
+```
+
+```{r}
+data_tit <- data_tit[-9]
+data_tit <- data_tit[-3]
+data_tit$Pclass <- factor(data_tit$Pclass)
+data_tit$Sex <- factor(data_tit$Sex)
+data_tit$Embarked <- factor(data_tit$Embarked)
+data_tit$Title <- factor(data_tit$Title)
+data_tit$F_Size_D <- factor(data_tit$F_Size_D)
+str(data_tit)
+```
+
+```{r}
+md.pattern(data_tit)
+```
+
+
+```{r}
+# Splitting the data
+split = 0.8
+trainIndex <- createDataPartition(data_tit$Survived, p=split, list=FALSE)
+train <- data_tit[trainIndex,]
+test <- data_tit[-trainIndex,]
+
+naive_classifier <- NaiveBayes(Survived~., data=train)
+
+naive_pred <- predict(naive_classifier, test[-1])
+
+confusionMatrix(naive_pred$class, test[,1])
+```
+
+
