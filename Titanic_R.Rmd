@@ -1,6 +1,9 @@
 ```{r}
 library(dplyr)
 library(ggplot2) # Data visualization
+library(GGally) #ggpair
+install.packages('ElemStatLearn')
+library(ElemStatLearn) # KNN classifier plot
 library(readr) # CSV file I/O, e.g. the read_csv function
 library(tm) # text mining in R
 library(knitr) # Convert to html
@@ -18,6 +21,7 @@ library(e1071) # Naive Bayes package (naiveBayes)
 library(klaR) # Another naive bayes package (NaiveBayes)
 library('randomForest') # Random Forest
 library(caret) # Splitting data including cross validation
+library(class) # KNN Classifier 
 ```
 
 
@@ -224,6 +228,17 @@ str(data_tit)
 ```
 
 ```{r}
+multi_plot <- data_tit[, c('Survived', 'Pclass', 'Sex', 'Age', 'Embarked', 'Fare', 'Title', 'F_Size_D')]
+#ggpairs(multi_plot,
+#  lower = list(continuous = wrap("points", shape = I('.'))),
+#  upper = list(combo = wrap("box", outlier.shape = I('.'))))
+
+ggpairs(multi_plot, columns = 1:ncol(multi_plot), title = "Multi_Plots",  
+  axisLabels = "show", columnLabels = colnames(multi_plot[, columns]))
+```
+
+
+```{r}
 md.pattern(data_tit)
 ```
 
@@ -239,6 +254,68 @@ train_labels <- data_tit[trainIndex,]$Survived
 test_labels <- data_tit[-trainIndex,]$Survived
 ```
 
+
+```{r}
+# K-NN Algorithm
+ctr <- trainControl(method="repeatedcv",number =10 ,repeats = 3)
+
+knn_classifier <- train(Survived ~ ., data = train, method = "knn", trControl = ctr, preProcess = c("center","scale"), tuneLength = 20, na.action="na.omit")
+
+knn_classifier;summary(medknnFit)
+```
+
+```{r}
+plot(knn_classifier)
+```
+
+```{r}
+plot(knn_classifier, print.thres = 0.5, type="S")
+```
+
+```{r}
+# Drawing a decision boundary for KNN classifier
+x <- mixture.example$x
+g <- mixture.example$y
+xnew <- mixture.example$xnew
+mod15 <- knn(x, xnew, g, k=15, prob=TRUE)
+prob <- attr(mod15, "prob")
+prob <- ifelse(mod15=="1", prob, 1-prob)
+px1 <- mixture.example$px1
+px2 <- mixture.example$px2
+prob15 <- matrix(prob, length(px1), length(px2))
+par(mar=rep(2,4))
+contour(px1, px2, prob15, levels=0.5, labels="", xlab="", ylab="", main=
+        "15-nearest neighbour", axes=FALSE)
+points(x, col=ifelse(g==1, "coral", "cornflowerblue"))
+gd <- expand.grid(x=px1, y=px2)
+points(gd, pch=".", cex=1.2, col=ifelse(prob15>0.5, "coral", "cornflowerblue"))
+box()
+```
+
+
+```{r}
+knn_predict <- predict(knn_classifier, newdata = test)
+```
+
+```{r}
+knn_table <- table(actualclass=test_labels, predictedclass=knn_predict)
+knn_conf_matrix <- confusionMatrix(knn_table)
+print(knn_conf_matrix);CrossTable(knn_predict, test_labels, 
+           prop.chisq = FALSE, prop.t = FALSE,
+           dnn = c('predicted', 'actual'))
+```
+
+```{r}
+# Selecting which variables are most important
+model.tree  <- train(Survived ~ .,
+                   data = data_tit,
+                   method = "rpart")
+
+plot(varImp(model.tree), top = 10)
+```
+
+
+
 ```{r}
 # Naive Bayes Classifier
 naive_classifier <- naiveBayes(train, train_labels)
@@ -250,14 +327,10 @@ CrossTable(naive_predictor, test_labels,
 ```
 
 
-```{r}
-# Decision Tree Classifier
-```
 
+> https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776
+> http://blog.revolutionanalytics.com/2013/06/plotting-classification-and-regression-trees-with-plotrpart.html
 
-
-
-
-
-
-
+> 1. Lean to plot classifiers boundary
+> 2. http://michael.hahsler.net/SMU/EMIS7332/R/viz_classifier.html
+> 3. Focus on Naive Bayes, KNN and Decision tree for now, learn all plots and tricks to enahnce classifier

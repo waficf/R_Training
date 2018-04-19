@@ -195,7 +195,8 @@ CrossTable(x=p, y=wbc_test_labels, prop.chisq = FALSE)
 ```
 
 
-# NAIVE BAYES ALGORITHM FOR TEXT PROCESSING
+> NAIVE BAYES ALGORITHM FOR TEXT PROCESSING
+
 
 ```{r}
 sms_raw <- read.csv('sms_spam.csv', stringsAsFactors = FALSE)
