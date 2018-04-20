@@ -1,9 +1,16 @@
+
+> https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776
+> http://blog.revolutionanalytics.com/2013/06/plotting-classification-and-regression-trees-with-plotrpart.html
+> http://www.cmap.polytechnique.fr/~lepennec/R/Learning/Learning.html
+> http://michael.hahsler.net/SMU/EMIS7332/R/viz_classifier.html
+
+
 ```{r}
 library(dplyr)
 library(ggplot2) # Data visualization
 library(GGally) #ggpair
-install.packages('ElemStatLearn')
 library(ElemStatLearn) # KNN classifier plot
+library(rpart) # Fancy decision making plots
 library(readr) # CSV file I/O, e.g. the read_csv function
 library(tm) # text mining in R
 library(knitr) # Convert to html
@@ -26,26 +33,28 @@ library(class) # KNN Classifier
 
 
 ```{r}
-data <- read.csv('/Users/wafic/Downloads/data/titanic_data.csv', stringsAsFactors = FALSE)
+titanic <- read.csv('/Users/wafic/Downloads/data/titanic_data.csv', stringsAsFactors = FALSE, na.strings=c("","NA"))
 ```
 
 ```{r}
-dim(data)
+dim(titanic)
 ```
 
 ```{r}
-str(data)
+nulls <- function(x){
+  sum(is.na(x))
+}
+
+sapply(titanic, nulls)
 ```
 
 ```{r}
-# Drop the Passenger ID and the Ticket as they share no pattersn between passengers
-data_tit <- select(data,-PassengerId, -Ticket)
-dim(data_tit)
+str(titanic)
 ```
 
-
 ```{r}
-head(data_tit,2)
+data_tit <- subset(titanic, select=-c(Ticket, PassengerId, Cabin))
+str(data_tit)
 ```
 
 ```{r}
@@ -85,13 +94,6 @@ ggplot(aes(x=Age), data = data_tit)+
   geom_histogram()
 ```
 
-
-```{r}
-ggplot(aes(x=Age, y=Fare, colour = factor(Survived)), data=data_tit)+
-  geom_point(alpha = 0.8)+
-  facet_grid(. ~Sex)+
-  theme_minimal()
-```
 
 ```{r}
 data_tit$Title <- gsub("(.*, )|(\\..*)", '',data_tit$Name)
@@ -139,20 +141,15 @@ table(data_tit$F_Size_D, data_tit$Survived)
 mosaicplot(table(data_tit$F_Size_D, data_tit$Survived), main = "Family Survival on the Titanic", color = TRUE, shade=TRUE)
 ```
 
-```{r}
-nulls <- function(x){
-  sum(is.na(x))
-}
+# MISSING VALUES
 
-sapply(data_tit, nulls)
-```
-
+# AGE
 ```{r}
 aggr_plot <- aggr(data_tit, col=c('navyblue','red'), numbers=TRUE, sortVars=TRUE, labels=names(data_tit), cex.axis=.6, gap=4, ylab=c("Histogram of missing data","Pattern"))
 ```
 
 ```{r}
-mice_mod <- mice(data_tit[, !names(data_tit) %in% c('Cabin','F_Size','Name','Survived')], method='rf',seed=129)
+mice_mod <- mice(data_tit[, !names(data_tit) %in% c('F_Size','Name','Survived')], method='rf',seed=129)
 summary(mice_mod)
 ```
 
@@ -187,12 +184,62 @@ ggplot(aes(x=Age, fill= factor(Survived)), data=data_tit)+
   theme_classic()
 ```
 
+# EMBARKED
+
+```{r}
+which(is.na(data_tit$Embarked), arr.ind=TRUE)
+```
+
+```{r}
+ggplot(aes(x=Age, y=Fare, colour = factor(Survived), shape=Sex), data=data_tit)+
+  geom_point(alpha = 0.8)+
+  facet_grid(Pclass~Embarked)+
+  scale_y_log10()
+```
+
+```{r}
+# Looking at the above plot we see they are in class 1, and it makes sense to 
+# either put them in S or Q
+
+data_tit[830,]$Fare;data_tit[62,]$Fare
+```
+
+
+```{r}
+# They both paid 80
+data_embark <- data_tit[-c(62, 830),]
+
+median(data_embark[data_embark$Pclass == 1 & data_embark$Embarked == 'C',]$Fare);median(data_embark[data_embark$Pclass == 1 & data_embark$Embarked == 'S',]$Fare)
+```
+> Since the median of C is closer to what they paid we will put them in C
+
+```{r}
+ggplot(aes(x=Embarked, y=Fare, fill=factor(Pclass)), data=data_embark)+
+  geom_boxplot()+
+  geom_hline(aes(yintercept=80),colour='red', linetype='dashed', lwd=2)
+```
+
+
+```{r}
+# Putting C in these null data points
+
+data_tit$Embarked[c(62, 830)] <- 'C'
+```
+
+
+```{r}
+sapply(data_tit, nulls)
+```
+
+
+# FEATURE ENGINEERING
 
 ```{r}
 data_tit$Child[data_tit$Age < 18] <- 'Child'
 data_tit$Child[data_tit$Age >= 18] <- 'Adult'
 table(data_tit$Child, data_tit$Survived)
 ```
+
 ```{r}
 ggplot(aes(x=Age, fill=factor(Survived)), data=data_tit)+
   geom_histogram()+
@@ -200,7 +247,6 @@ ggplot(aes(x=Age, fill=factor(Survived)), data=data_tit)+
 ```
 
 ```{r}
-#subset(data_tit, Child == 'Adult' & Sex == 'female')
 data_tit$Mother <- 'Not Mother'
 data_tit$Mother[data_tit$Child == 'Adult' & data_tit$Sex == 'female' & data_tit$Parch > 0 & data_tit$Title != 'Miss'] <- 'Mother'
 
@@ -212,13 +258,11 @@ data_tit$Child <- factor(data_tit$Child)
 data_tit$Mother <- factor(data_tit$Mother)
 ```
 
-```{r}
-sapply(data_tit, nulls)
-```
+
 
 ```{r}
-data_tit <- data_tit[-9]
 data_tit <- data_tit[-3]
+data_tit <- data_tit[-9]
 data_tit$Pclass <- factor(data_tit$Pclass)
 data_tit$Sex <- factor(data_tit$Sex)
 data_tit$Embarked <- factor(data_tit$Embarked)
@@ -227,19 +271,23 @@ data_tit$F_Size_D <- factor(data_tit$F_Size_D)
 str(data_tit)
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 multi_plot <- data_tit[, c('Survived', 'Pclass', 'Sex', 'Age', 'Embarked', 'Fare', 'Title', 'F_Size_D')]
-#ggpairs(multi_plot,
-#  lower = list(continuous = wrap("points", shape = I('.'))),
-#  upper = list(combo = wrap("box", outlier.shape = I('.'))))
-
-ggpairs(multi_plot, columns = 1:ncol(multi_plot), title = "Multi_Plots",  
-  axisLabels = "show", columnLabels = colnames(multi_plot[, columns]))
+ggpairs(multi_plot, columns = 1:ncol(multi_plot), title = "Multi_Plots",axisLabels = "show", columnLabels = colnames(multi_plot[, columns]))
 ```
 
 
 ```{r}
 md.pattern(data_tit)
+```
+
+```{r}
+# Selecting which variables are most important
+model.tree  <- train(Survived ~ .,
+                   data = data_tit,
+                   method = "rpart")
+
+plot(varImp(model.tree), top = 10)
 ```
 
 
@@ -256,48 +304,21 @@ test_labels <- data_tit[-trainIndex,]$Survived
 
 
 ```{r}
-# K-NN Algorithm
+# K-NN Classifier
 ctr <- trainControl(method="repeatedcv",number =10 ,repeats = 3)
 
 knn_classifier <- train(Survived ~ ., data = train, method = "knn", trControl = ctr, preProcess = c("center","scale"), tuneLength = 20, na.action="na.omit")
 
-knn_classifier;summary(medknnFit)
+knn_classifier;summary(knn_classifier)
 ```
 
 ```{r}
 plot(knn_classifier)
 ```
 
-```{r}
-plot(knn_classifier, print.thres = 0.5, type="S")
-```
-
-```{r}
-# Drawing a decision boundary for KNN classifier
-x <- mixture.example$x
-g <- mixture.example$y
-xnew <- mixture.example$xnew
-mod15 <- knn(x, xnew, g, k=15, prob=TRUE)
-prob <- attr(mod15, "prob")
-prob <- ifelse(mod15=="1", prob, 1-prob)
-px1 <- mixture.example$px1
-px2 <- mixture.example$px2
-prob15 <- matrix(prob, length(px1), length(px2))
-par(mar=rep(2,4))
-contour(px1, px2, prob15, levels=0.5, labels="", xlab="", ylab="", main=
-        "15-nearest neighbour", axes=FALSE)
-points(x, col=ifelse(g==1, "coral", "cornflowerblue"))
-gd <- expand.grid(x=px1, y=px2)
-points(gd, pch=".", cex=1.2, col=ifelse(prob15>0.5, "coral", "cornflowerblue"))
-box()
-```
-
 
 ```{r}
 knn_predict <- predict(knn_classifier, newdata = test)
-```
-
-```{r}
 knn_table <- table(actualclass=test_labels, predictedclass=knn_predict)
 knn_conf_matrix <- confusionMatrix(knn_table)
 print(knn_conf_matrix);CrossTable(knn_predict, test_labels, 
@@ -306,31 +327,41 @@ print(knn_conf_matrix);CrossTable(knn_predict, test_labels,
 ```
 
 ```{r}
-# Selecting which variables are most important
-model.tree  <- train(Survived ~ .,
-                   data = data_tit,
-                   method = "rpart")
-
-plot(varImp(model.tree), top = 10)
-```
-
-
-
-```{r}
 # Naive Bayes Classifier
+
 naive_classifier <- naiveBayes(train, train_labels)
 naive_predictor <- predict(naive_classifier, test)
 
-CrossTable(naive_predictor, test_labels, 
+nb_table <- table(actualclass=test_labels, predictedclass=naive_predictor)
+nb_conf_matrix <- confusionMatrix(nb_table)
+print(nb_conf_matrix); CrossTable(naive_predictor, test_labels, 
            prop.chisq = FALSE, prop.t = FALSE,
            dnn = c('predicted', 'actual'))
 ```
 
+```{r}
+# Decision Tree
+tree_classifier <- C5.0(train[-1], train$Survived)
+tree_predictor <- predict(tree_classifier, test)
+
+tree_table <- table(actualclass=test_labels, predictedclass=tree_predictor)
+tree_conf_matrix <- confusionMatrix(tree_table)
+print(tree_conf_matrix); CrossTable(tree_predictor, test_labels, 
+           prop.chisq = FALSE, prop.t = FALSE,
+           dnn = c('predicted', 'actual'))
+```
+
+```{r}
+str(data_tit)
+```
 
 
-> https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776
-> http://blog.revolutionanalytics.com/2013/06/plotting-classification-and-regression-trees-with-plotrpart.html
+```{r}
+#https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776/2
+rpart(Age ~ Pclass + Sex + SibSp + Parch + Fare + Embarked + Title + F_Size_D, data=data_tit, method="anova")
+```
 
-> 1. Lean to plot classifiers boundary
-> 2. http://michael.hahsler.net/SMU/EMIS7332/R/viz_classifier.html
-> 3. Focus on Naive Bayes, KNN and Decision tree for now, learn all plots and tricks to enahnce classifier
+
+> FInished all 3 algorithms, go through book to see what can be done to enhance 
+the performace and then 
+
