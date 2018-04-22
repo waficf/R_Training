@@ -11,6 +11,9 @@ library(ggplot2) # Data visualization
 library(GGally) #ggpair
 library(ElemStatLearn) # KNN classifier plot
 library(rpart) # Fancy decision making plots
+library(rpart.plot) # Draw tree
+#library(rattle) # Fancy tree
+#install.packages('rattle')
 library(readr) # CSV file I/O, e.g. the read_csv function
 library(tm) # text mining in R
 library(knitr) # Convert to html
@@ -222,7 +225,6 @@ ggplot(aes(x=Embarked, y=Fare, fill=factor(Pclass)), data=data_embark)+
 
 ```{r}
 # Putting C in these null data points
-
 data_tit$Embarked[c(62, 830)] <- 'C'
 ```
 
@@ -261,8 +263,8 @@ data_tit$Mother <- factor(data_tit$Mother)
 
 
 ```{r}
-data_tit <- data_tit[-3]
-data_tit <- data_tit[-9]
+#data_tit <- data_tit[-3]
+#data_tit <- data_tit[-10]
 data_tit$Pclass <- factor(data_tit$Pclass)
 data_tit$Sex <- factor(data_tit$Sex)
 data_tit$Embarked <- factor(data_tit$Embarked)
@@ -328,7 +330,6 @@ print(knn_conf_matrix);CrossTable(knn_predict, test_labels,
 
 ```{r}
 # Naive Bayes Classifier
-
 naive_classifier <- naiveBayes(train, train_labels)
 naive_predictor <- predict(naive_classifier, test)
 
@@ -357,11 +358,14 @@ str(data_tit)
 
 
 ```{r}
-#https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776/2
-rpart(Age ~ Pclass + Sex + SibSp + Parch + Fare + Embarked + Title + F_Size_D, data=data_tit, method="anova")
+# https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776/2
+# https://www.statmethods.net/advstats/cart.html
+titanic_rpart <- rpart(Age ~ Pclass + Sex + SibSp + Parch + Fare + Embarked + Title + F_Size_D, data=data_tit, method="anova")
+```
+
+```{r}
+rpart.plot(titanic_rpart)
 ```
 
 
-> FInished all 3 algorithms, go through book to see what can be done to enhance 
-the performace and then 
 

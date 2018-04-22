@@ -331,8 +331,6 @@ credit_train[-17] # this includes all the predictor varibales except the column 
 
 ```{r}
 credit_model <- C5.0(credit_train[-17], credit_train$default)
-credit_model
-summary(credit_model)
 ```
 
 ```{r}
@@ -349,5 +347,14 @@ CrossTable(credit_test$default, credit_pred,
 matrix_dimensions <- list(c("no", "yes"), c("no", "yes"))
 names(matrix_dimensions) <- c('predicted', 'actual')
 matrix_dimensions
+```
+
+```{r}
+credit_boost10 <- C5.0(credit_train[-17], credit_train$default, trials = 10)
+credit_boost_predict10 <- predict(credit_boost10, credit_test)
+
+CrossTable(credit_test$default, credit_boost_predict,
+             prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+             dnn = c('actual default', 'predicted default'))
 ```
 
