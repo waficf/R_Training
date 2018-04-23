@@ -10,6 +10,7 @@ library(tidyverse)
 library(e1071) # Naive Bayes package
 library(gmodels) # Uses crosstab function
 library(C50) # Package that includes the decision tree algorithm
+library(kernlab)
 ```
 
 ```{r}
@@ -319,6 +320,7 @@ defaults <- function(x){
 # CONVRTED THE DEFAULT TO FACTORS BY APPLYING THE ABOVE FUNCTION
 # SINCE LAPPLY RETURNS A LIST, IT IS BEST TO USE DATA.FRAME BEFORE THE FUNCTION
 credit_train <- data.frame(credit_train[1:16], lapply(credit_train[17], defaults))
+credit_test <- data.frame(credit_test[1:16], lapply(credit_test[17], defaults))
 str(credit_train)
 table(credit_train$default)
 ```
@@ -353,8 +355,21 @@ matrix_dimensions
 credit_boost10 <- C5.0(credit_train[-17], credit_train$default, trials = 10)
 credit_boost_predict10 <- predict(credit_boost10, credit_test)
 
-CrossTable(credit_test$default, credit_boost_predict,
+CrossTable(credit_test$default, credit_boost_predict10,
              prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
              dnn = c('actual default', 'predicted default'))
 ```
+
+# SVM Classifiers
+
+```{r}
+letters <- read.csv('/Users/wafic/Downloads/Machine-Learning-with-R-datasets-master/letterdata.csv')
+str(letters)
+```
+
+```{r}
+letters_train <- letters[1:16000,]
+letters_test <- letters[16001:20000,]
+```
+
 
