@@ -11,6 +11,8 @@ library(e1071) # Naive Bayes package
 library(gmodels) # Uses crosstab function
 library(C50) # Package that includes the decision tree algorithm
 library(kernlab)
+library(arules) # Apriori Algorithm and sparce reader
+library(stats)
 ```
 
 ```{r}
@@ -76,6 +78,10 @@ str(wbc)
 ```
 ```{r}
 wbc <- wbc[-1]
+```
+
+```{r}
+
 ```
 
 ```{r}
@@ -372,4 +378,159 @@ letters_train <- letters[1:16000,]
 letters_test <- letters[16001:20000,]
 ```
 
+```{r}
+letter_classifier <- ksvm(letter~., data=letters_train, kernel='vanilladot')
+```
+
+```{r}
+letters_predictor <- predict(letter_classifier, letters_test)
+table(letters_predictor, letters_test$letter)
+```
+
+```{r}
+agreement <- letters_predictor==letters_test$letter
+table(agreement)
+```
+
+```{r}
+letter_classifier_rbf <- ksvm(letter~., data=letters_train, kernel='rbfdot')
+letter_predictor_rbf <- predict(letter_classifier_rbf, letters_test)
+agreement_rbf <- letter_predictor_rbf==letters_test$letter
+table(agreement_rbf)
+```
+
+# APRIARI ALGORITHM FOR MARKET BASKET ANALYSIS
+
+```{r}
+# Import in a sparce format
+groceries <- read.transactions('/Users/wafic/Downloads/Machine-Learning-with-R-datasets-master/groceries.csv', sep=',')
+```
+
+```{r}
+summary(groceries)
+```
+
+```{r}
+inspect(groceries[1:3])
+```
+
+```{r}
+# A column of the data
+itemFrequency(groceries[,1:3])
+```
+
+```{r}
+# 8 items with 10% support
+itemFrequencyPlot(groceries, support=0.1)
+```
+
+```{r}
+# Top 20 items
+itemFrequencyPlot(groceries, topN=20)
+```
+
+```{r}
+# Entire Sparce Matric
+image(groceries[1:100])
+```
+
+```{r}
+groceryrules <- apriori(groceries, parameter = list(support =0.006, confidence = 0.25, minlen = 2))
+```
+```{r}
+# Our algorithm has 463 rules
+groceryrules
+```
+```{r}
+# 150 rules has 2 items, 297 rules has 3 items...
+summary(groceryrules)
+```
+
+```{r}
+inspect(groceryrules[1:3])
+```
+
+```{r}
+inspect(sort(groceryrules, by = "lift")[1:5])
+```
+
+```{r}
+berryrules <- subset(groceryrules, items %in% 'berries')
+inspect(berryrules)
+```
+
+
+
+> The subset() function is very powerful. The criteria for choosing the subset can be defined with several keywords and operators:
+> The keyword items explained previously, matches an item appearing anywhere in the rule. To limit the subset to where the match occurs only on the left- or right-hand side, use lhs and rhs instead.
+> The operator %in% means that at least one of the items must be found in the list you defined. If you want any rules matching either berries or yogurt, you could write items %in%c("berries", "yogurt”).
+> Additional operators are available for partial matching (%pin%) and complete matching (%ain%). Partial matching allows you to find both citrus fruit and tropical fruit using one search: items %pin% "fruit". Complete matching requires that all the listed items are present. For instance, items %ain% c("berries", "yogurt") finds only rules with both berries and yogurt.
+> Subsets can also be limited by support, confidence, or lift. For instance, confidence > 0.50 would limit you to the rules with confidence greater than 50 percent.
+> Matching criteria can be combined with the standard R logical operators such as and (&), or (|), and not (!).
+
+# K-MEANS CLUSTERING
+
+```{r}
+teens <- read.csv('/Users/wafic/Downloads/Machine-Learning-with-R-datasets-master/snsdata.csv', stringsAsFactors = FALSE)
+```
+
+```{r}
+str(teens)
+```
+
+```{r}
+table(teens$gender, useNA = 'ifany')
+```
+
+```{r}
+summary(teens$age)
+# Age 106 and 3 lol
+```
+
+```{r}
+# Fixing Age
+teens$age <- ifelse(teens$age >= 13 & teens$age < 20, teens$age, NA)
+summary(teens$age)
+```
+
+```{r}
+# Creating dummy variables for gender
+teens$female <- ifelse(teens$gender == 'F' & !is.na(teens$gender), 1, 0)
+teens$no_gender <- ifelse(is.na(teens$gender), 1, 0)
+table(teens$no_gender, useNA = 'ifany')
+```
+
+
+```{r}
+# Imputing missing points 5523 for age
+mean(teens$age, na.rm = T)
+```
+
+```{r}
+# Mean age for every graduation year
+aggregate(data=teens, age~gradyear, mean, na.rm=T)
+```
+
+```{r}
+# we can use the ave() function, which returns a vector with the group means repeated 
+# so that the result is equal in length to the original vector:
+
+ave_age <- ave(teens$age, teens$gradyear, FUN = function(x) mean(x, na.rm = T))
+
+teens$age <- ifelse(is.na(teens$age), ave_age, teens$age)
+summary(teens$age)
+```
+
+```{r}
+interests <- teens[5:40]
+```
+
+
+```{r}
+# rescaling to z score
+interests_z <- as.data.frame(lapply(interests, scale))
+
+# 5 Clusters
+teens_cluster <- kmeans(interests_z, 5)
+```
 
