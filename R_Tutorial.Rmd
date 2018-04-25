@@ -13,6 +13,7 @@ library(C50) # Package that includes the decision tree algorithm
 library(kernlab)
 library(arules) # Apriori Algorithm and sparce reader
 library(stats)
+library(caret) # Splitting data including cross validation
 ```
 
 ```{r}
@@ -532,5 +533,70 @@ interests_z <- as.data.frame(lapply(interests, scale))
 
 # 5 Clusters
 teens_cluster <- kmeans(interests_z, 5)
+teens_cluster$size
 ```
+
+```{r}
+teens_cluster$centers
+```
+
+```{r}
+teens$cluster <- teens_cluster$cluster
+teens[1:5, c("cluster", "gender", "age", "friends")]
+```
+
+```{r}
+aggregate(data = teens, age~cluster, mean)
+```
+```{r}
+aggregate(data = teens, female~cluster, mean)
+```
+```{r}
+aggregate(data = teens, friends~cluster, mean)
+```
+
+# Model Evaluation
+
+```{r}
+sms_test_prob <- predict(sms_classifier, sms_test, type = "raw")
+head(sms_test_prob)
+```
+
+```{r}
+sms_results <- read.csv("/Users/wafic/Downloads/Machine-Learning-with-R-datasets-master/mlwr-master/10 - Model Performance/sms_results.csv")
+head(sms_results)
+```
+
+```{r}
+head(subset(sms_results, actual_type!=predict_type))
+```
+
+
+```{r}
+table(sms_results$actual_type, sms_results$predict_type)
+```
+
+```{r}
+CrossTable(sms_results$actual_type, sms_results$predict_type, prop.chisq = FALSE)
+```
+
+```{r}
+confusionMatrix(sms_results$actual_type, sms_results$predict_type, positive = 'spam')
+
+# Kappa Evaluation
+# • Poor agreement = less than 0.20
+# • Fair agreement = 0.20 to 0.40
+# • Moderate agreement = 0.40 to 0.60
+# • Good agreement = 0.60 to 0.80
+# • Very good agreement = 0.80 to 1.00
+```
+
+```{r}
+
+```
+
+
+
+
+
 
