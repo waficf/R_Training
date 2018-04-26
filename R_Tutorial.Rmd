@@ -14,6 +14,10 @@ library(kernlab)
 library(arules) # Apriori Algorithm and sparce reader
 library(stats)
 library(caret) # Splitting data including cross validation
+library(ROCR) # ROC Curve
+library(vcd) # Kappa
+library(irr)
+library(ipred) # Bagging 
 ```
 
 ```{r}
@@ -592,11 +596,116 @@ confusionMatrix(sms_results$actual_type, sms_results$predict_type, positive = 's
 ```
 
 ```{r}
+head(sms_results)
+```
 
+```{r}
+pred <- prediction(predictions=sms_results$prob_spam, labels=sms_results$actual_type)
+
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+
+plot(perf, main = "ROC curve for SMS spam filter", col = "blue", lwd = 3)
+```
+
+```{r}
+# Cross Validation
+set.seed(123)
+
+folds <- createFolds(credit$default, k=10)
+str(folds)
+credit$default <- factor(credit$default)
+```
+
+```{r}
+credit01_test <- credit[folds$Fold01,]
+credit01_train <- credit[-folds$Fold01,]
 ```
 
 
+```{r}
+cv_results <- lapply(folds, function(x) {
+    credit_train <- credit[-x, ]
+    credit_test <- credit[x, ]
+    credit_model <- C5.0(default ~ ., data = credit_train)
+    credit_pred <- predict(credit_model, credit_test)
+    credit_actual <- credit_test$default
+    kappa <- kappa2(data.frame(credit_actual, credit_pred))$value
+    return(kappa)
+  })
 
+str(cv_results)
+mean(unlist(cv_results))
+```
+
+# Improving Model Performance
+
+```{r}
+# Knowing tuning parameters of every model in R
+modelLookup("C5.0")
+```
+
+```{r}
+set.seed(300)
+m <- train(default ~ ., data = credit, method = "C5.0")
+```
+
+```{r}
+m
+```
+
+```{r}
+p <- predict(m, credit)
+table(p, credit$default)
+```
+
+```{r}
+# Automatic Parameter Tuning in R
+ctrl <- trainControl(method = "cv", number = 10, selectionFunction = "oneSE")
+
+grid <- expand.grid(.model = "tree",
+                      .trials = c(1, 5, 10, 15, 20, 25, 30, 35),
+                      .winnow = "FALSE")
+
+set.seed(300)
+m <- train(default ~ ., data = credit, method = "C5.0",
+           metric = "Kappa",
+           trControl = ctrl,
+           tuneGrid = grid)
+```
+
+
+```{r}
+# Ensemble Bagging
+set.seed(300)
+mybag <- bagging(default ~ ., data = credit, nbagg = 25)
+
+credit_pred <- predict(mybag, credit)
+table(credit_pred, credit$default)
+```
+
+```{r}
+# Bagging with 10 fold cross validation
+set.seed(300)
+ctrl <- trainControl(method = "cv", number = 10)
+# bagged trees function is treebag
+train(default ~ ., data = credit, method = "treebag",
+         trControl = ctrl)
+```
+```{r}
+
+# The caret package also includes example objects for bags of naive Bayes models (nbBag), decision trees (ctreeBag), and neural networks (nnetBag).
+
+
+# Bagging with SVM
+bagctrl <- bagControl(fit = svmBag$fit,
+                        predict = svmBag$pred,
+                        aggregate = svmBag$aggregate)
+
+set.seed(300)
+svmbag <- train(default ~ ., data = credit, "bag", trControl = ctrl, bagControl = bagctrl)
+
+svmbag
+```
 
 
 
