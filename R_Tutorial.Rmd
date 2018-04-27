@@ -18,6 +18,8 @@ library(ROCR) # ROC Curve
 library(vcd) # Kappa
 library(irr)
 library(ipred) # Bagging 
+library(adabag) # ADA BOOST
+library(randomForest) # RANDOM FOREST
 ```
 
 ```{r}
@@ -706,6 +708,49 @@ svmbag <- train(default ~ ., data = credit, "bag", trControl = ctrl, bagControl 
 
 svmbag
 ```
+
+```{r}
+# ADA Boosting Algorithm
+
+set.seed(300)
+m_adaboost <- boosting(default ~ ., data = credit)
+p_adaboost <- predict(m_adaboost, credit)
+
+p_adaboost$confusion
+```
+```{r}
+# For a more accurate assessment of performance on unseen data, we need to use another evaluation method
+# Using 10 folds
+adaboost_cv <- boosting.cv(default ~ ., data = credit)
+adaboost_cv$confusion
+```
+
+```{r}
+convert_counts <- function(x){
+  x <- ifelse(x == 1, 'Yes', 'No')
+}
+```
+
+```{r}
+# Random Forest
+set.seed(300)
+
+credit[sapply(credit, is.numeric)] <- lapply(credit[sapply(credit, is.numeric)], as.factor)
+
+credit[sapply(credit, is.character)] <- lapply(credit[sapply(credit, is.character)], as.factor)
+
+#credit <- data.frame(credit[1:16] , lapply(credit[17], convert_counts))
+credit_fact
+rf <- randomForest(default ~ ., data = credit[-c(2, 5, 13)])
+rf
+```
+
+```{r}
+m_rf <- train(default ~ ., data = credit, method = "rf",
+                metric = "Kappa", trControl = ctrl,
+                tuneGrid = grid_rf)
+```
+
 
 
 
