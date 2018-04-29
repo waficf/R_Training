@@ -1,19 +1,18 @@
+# Titanic Machine Leaning First Submission
+***
+This is my first Kaggle submission, I really learned a lot from practicing
+here than from reading several books. You can see that I have taken lots of 
+chunks of code from Megan Risdal submission and I tried to run every algorithm
+I learned so far for the sake of practice
 
-> https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776
-> http://blog.revolutionanalytics.com/2013/06/plotting-classification-and-regression-trees-with-plotrpart.html
-> http://www.cmap.polytechnique.fr/~lepennec/R/Learning/Learning.html
-> http://michael.hahsler.net/SMU/EMIS7332/R/viz_classifier.html
-
-
-```{r}
+## 1. Importing the needed libraries
+```{r eval=FALSE, Packages}
 library(dplyr)
 library(ggplot2) # Data visualization
 library(GGally) #ggpair
 library(ElemStatLearn) # KNN classifier plot
 library(rpart) # Fancy decision making plots
 library(rpart.plot) # Draw tree
-#library(rattle) # Fancy tree
-#install.packages('rattle')
 library(readr) # CSV file I/O, e.g. the read_csv function
 library(tm) # text mining in R
 library(knitr) # Convert to html
@@ -25,16 +24,16 @@ library('mice') # imputation
 library(VIM)  # Plots missing data
 library(gridExtra) #Plotting ggplots side by side
 library(ggpubr) # Nice Theme
-
 library(C50) # Package that includes the decision tree algorithm
 library(e1071) # Naive Bayes package (naiveBayes)
 library(klaR) # Another naive bayes package (NaiveBayes)
 library('randomForest') # Random Forest
 library(caret) # Splitting data including cross validation
 library(class) # KNN Classifier 
+library(randomForest) # RANDOM FOREST
 ```
 
-
+## 2. Importing Data with Little EDA
 ```{r}
 titanic <- read.csv('/Users/wafic/Downloads/data/titanic_data.csv', stringsAsFactors = FALSE, na.strings=c("","NA"))
 ```
@@ -44,21 +43,27 @@ dim(titanic)
 ```
 
 ```{r}
+str(titanic)
+```
+We can see that some variables like PassengerId and Ticket are unique to every 
+passenger and hold little value for our algorithm
+
+```{r}
 nulls <- function(x){
   sum(is.na(x))
 }
 
 sapply(titanic, nulls)
 ```
-
-```{r}
-str(titanic)
-```
+We've got several variables with missing data points, usually we can drop a 
+variable like 'Cabin' since most of the data is missing but we can impute Age
+and Embarked
 
 ```{r}
 data_tit <- subset(titanic, select=-c(Ticket, PassengerId, Cabin))
 str(data_tit)
 ```
+Dropped Ticket, PassengerId and Cabin from our variables into a new dataframe
 
 ```{r}
 data_tit$Survived <- factor(data_tit$Survived)
@@ -76,32 +81,124 @@ prop.table(table(data_tit$Sex))*100
 ```{r}
 summary(data_tit$Fare)
 ```
+With median Fare of 14.45, some members paid 512 which is quite expensive
 
 ```{r}
 summary(data_tit$Age)
 ```
-
-
-```{r}
-summary(data_tit)
-```
-
+Average age is around 30 which I believe is due to the european migration
+to the US at the start of the 20th century in pusuit of a better life at the new
+land (later known as the American Dream, term coined din 1931)
 
 ```{r}
 ggplot(aes(x=Fare), data=data_tit)+
   geom_histogram()
 ```
+We can see only one member (outlier) whom paid above 500
 
 ```{r}
 ggplot(aes(x=Age), data = data_tit)+
   geom_histogram()
 ```
+A bit of a right skewed graph as the majority of travelers are between 20 and 40
+with very few old members above 60. We can see quite some infants and youngsters
+below 20 which implies that there where some entire families migrating
+
+## 3. Filling up the missing data points in Embarked and Age
+
+```{r}
+aggr_plot <- aggr(data_tit, col=c('navyblue','red'), numbers=TRUE, sortVars=TRUE, labels=names(data_tit), cex.axis=.6, gap=4, ylab=c("Histogram of missing data","Pattern"))
+```
+Lots of points missing in Age and few in Embarked
+
+#### 3.1 Imputing Age
+
+```{r}
+Pmiss <- function(x){
+  sum(is.na(x))/length(x)*100
+}
+Pmiss(data_tit$Age)
+```
+Almost 20% of Age is missing, its better to impute than drop the entire variable
+
+```{r}
+tempdata <- mice(data_tit, m=5, maxit=50, meth='pmm',seed=500)
+summary(tempdata)
+```
 
 
+```{r}
+mice_output <- complete(tempdata, 1)
+```
+
+```{r}
+par(mfrow=c(1,2))
+hist(data_tit$Age, freq=F, main='Age: Original Data', 
+  col='darkgreen', ylim=c(0,0.04))
+hist(mice_output$Age, freq=F, main='Age: MICE Output', 
+  col='lightgreen', ylim=c(0,0.04))
+```
+
+```{r}
+data_tit$Age <- mice_output$Age
+sum(is.na(data_tit$Age))
+```
+
+
+#### 3.2 Imputing Embarked
+```{r}
+which(is.na(data_tit$Embarked), arr.ind=TRUE)
+```
+
+```{r}
+ggplot(aes(x=Age, y=Fare, colour = factor(Survived), shape=Sex), data=data_tit)+
+  geom_point(alpha = 0.8)+
+  facet_grid(Pclass~Embarked)+
+  scale_y_log10()
+```
+The 2 points are survivars and females whom Fare is a around 100
+
+```{r}
+data_tit[830,]$Fare;data_tit[62,]$Fare
+```
+
+
+```{r}
+data_embark <- data_tit[-c(62, 830),]
+
+median(data_embark[data_embark$Pclass == 1 & data_embark$Embarked == 'C',]$Fare);median(data_embark[data_embark$Pclass == 1 & data_embark$Embarked == 'S',]$Fare)
+```
+Since they both paid 80 and the median Fare for C is 78 and S is 52, we better 
+put them in Embarkment C
+
+```{r}
+ggplot(aes(x=Embarked, y=Fare, fill=factor(Pclass)), data=data_embark)+
+  geom_boxplot()+
+  geom_hline(aes(yintercept=80),colour='red', linetype='dashed', lwd=2)
+```
+The red line is the Fare they paid and we can see it is on the median of C 
+but the end of the IQR plot in S
+
+```{r}
+data_tit$Embarked[c(62, 830)] <- 'C'
+```
+
+
+```{r}
+sapply(data_tit, nulls)
+```
+We have no missing data points anymore
+
+
+## 4. Feature Engineering
+
+#### 4.1 Altering the Title Variable
 ```{r}
 data_tit$Title <- gsub("(.*, )|(\\..*)", '',data_tit$Name)
 table(data_tit$Title, data_tit$Sex)
 ```
+I would never thought of extracting data from the Title variable but after 
+reading Megan work I did and we can see some really valuable stufff here
 
 ```{r}
 rare_titles <- c("Capt", "Col", "Don", "Dr", "Jonkheer", "Lady", "Major", "Rev", "Sir", "the Countess")
@@ -116,21 +213,27 @@ table(data_tit$Title, data_tit$Sex)
 ```{r}
 ggplot(aes(x=Title, fill=factor(Survived)), data=data_tit)+
   geom_bar()+
+  ggtitle("Plotting of the New Variable Title")+
   theme_classic()
 ```
 
+#### 4.2 Traveling Families vs Singles
+
 ```{r}
 data_tit$F_Size <-  data_tit$SibSp + data_tit$Parch +1
-head(data_tit, 2)
+table(data_tit$F_Size)
 ```
-
+More than half of travelers are singles, I bet most are single young men in
+their thirtees
 
 ```{r}
 ggplot(aes(x=F_Size, fill=factor(Survived)),data=data_tit)+
   geom_bar(position = "dodge")+
   xlab("Family Size")+
-  theme_pubclean()
+  theme_classic()+
+  ggtitle('Family Size')
 ```
+Its better to travel in packs rather than alone
 
 ```{r}
 data_tit$F_Size_D[data_tit$F_Size == 1] <- 'Singles'
@@ -138,103 +241,14 @@ data_tit$F_Size_D[data_tit$F_Size > 1 & data_tit$F_Size < 5] <- 'Small'
 data_tit$F_Size_D[data_tit$F_Size >= 5] <- 'Large'
 table(data_tit$F_Size_D, data_tit$Survived)
 ```
-
+Of the 537 singles, 374 perished
 
 ```{r}
 mosaicplot(table(data_tit$F_Size_D, data_tit$Survived), main = "Family Survival on the Titanic", color = TRUE, shade=TRUE)
 ```
 
-# MISSING VALUES
 
-# AGE
-```{r}
-aggr_plot <- aggr(data_tit, col=c('navyblue','red'), numbers=TRUE, sortVars=TRUE, labels=names(data_tit), cex.axis=.6, gap=4, ylab=c("Histogram of missing data","Pattern"))
-```
-
-```{r}
-mice_mod <- mice(data_tit[, !names(data_tit) %in% c('F_Size','Name','Survived')], method='rf',seed=129)
-summary(mice_mod)
-```
-
-```{r}
-mice_output <- complete(mice_mod)
-dim(mice_output)
-```
-
-```{r}
-plot1 <- ggplot(aes(x=Age), data=data_tit)+
-  geom_histogram(aes(y = (..density..)), fill='darkgreen', col='white')+
-  ylim(0, 0.04)+
-  theme_pubclean()
-
-plot2 <- ggplot(aes(x=Age), data=mice_output)+
-  geom_histogram(aes(y = (..density..)), fill='lightgreen', col='white')+
-  ylim(0, 0.04)+
-  theme_pubclean()
-
-grid.arrange(plot1, plot2, ncol=2)
-```
-
-```{r}
-data_tit$Age <- mice_output$Age
-sum(is.na(data_tit$Age))
-```
-
-```{r}
-ggplot(aes(x=Age, fill= factor(Survived)), data=data_tit)+
-  geom_histogram()+
-  facet_grid(.~Sex)+
-  theme_classic()
-```
-
-# EMBARKED
-
-```{r}
-which(is.na(data_tit$Embarked), arr.ind=TRUE)
-```
-
-```{r}
-ggplot(aes(x=Age, y=Fare, colour = factor(Survived), shape=Sex), data=data_tit)+
-  geom_point(alpha = 0.8)+
-  facet_grid(Pclass~Embarked)+
-  scale_y_log10()
-```
-
-```{r}
-# Looking at the above plot we see they are in class 1, and it makes sense to 
-# either put them in S or Q
-
-data_tit[830,]$Fare;data_tit[62,]$Fare
-```
-
-
-```{r}
-# They both paid 80
-data_embark <- data_tit[-c(62, 830),]
-
-median(data_embark[data_embark$Pclass == 1 & data_embark$Embarked == 'C',]$Fare);median(data_embark[data_embark$Pclass == 1 & data_embark$Embarked == 'S',]$Fare)
-```
-> Since the median of C is closer to what they paid we will put them in C
-
-```{r}
-ggplot(aes(x=Embarked, y=Fare, fill=factor(Pclass)), data=data_embark)+
-  geom_boxplot()+
-  geom_hline(aes(yintercept=80),colour='red', linetype='dashed', lwd=2)
-```
-
-
-```{r}
-# Putting C in these null data points
-data_tit$Embarked[c(62, 830)] <- 'C'
-```
-
-
-```{r}
-sapply(data_tit, nulls)
-```
-
-
-# FEATURE ENGINEERING
+#### 4.3 Creating a new varibale Child/Adult form Age
 
 ```{r}
 data_tit$Child[data_tit$Age < 18] <- 'Child'
@@ -248,6 +262,7 @@ ggplot(aes(x=Age, fill=factor(Survived)), data=data_tit)+
   facet_grid(.~Child)
 ```
 
+#### 4.3 Creating a new variable Mother form Age and Family 
 ```{r}
 data_tit$Mother <- 'Not Mother'
 data_tit$Mother[data_tit$Child == 'Adult' & data_tit$Sex == 'female' & data_tit$Parch > 0 & data_tit$Title != 'Miss'] <- 'Mother'
@@ -261,10 +276,7 @@ data_tit$Mother <- factor(data_tit$Mother)
 ```
 
 
-
 ```{r}
-#data_tit <- data_tit[-3]
-#data_tit <- data_tit[-10]
 data_tit$Pclass <- factor(data_tit$Pclass)
 data_tit$Sex <- factor(data_tit$Sex)
 data_tit$Embarked <- factor(data_tit$Embarked)
@@ -272,41 +284,67 @@ data_tit$Title <- factor(data_tit$Title)
 data_tit$F_Size_D <- factor(data_tit$F_Size_D)
 str(data_tit)
 ```
-
-```{r, message=FALSE, warning=FALSE}
-multi_plot <- data_tit[, c('Survived', 'Pclass', 'Sex', 'Age', 'Embarked', 'Fare', 'Title', 'F_Size_D')]
-ggpairs(multi_plot, columns = 1:ncol(multi_plot), title = "Multi_Plots",axisLabels = "show", columnLabels = colnames(multi_plot[, columns]))
-```
-
+This is our new dataframe with new variable but we have variables that are
+useless and can be dropped
 
 ```{r}
-md.pattern(data_tit)
+data_tit <- data_tit[-3]
+data_tit <- data_tit[-10]
 ```
+Dropped variables Name as it has no value in predicting survivars and the 
+variable F_size as it is changes to F_Size_D
 
 ```{r}
-# Selecting which variables are most important
+full_data <- data_tit
+str(full_data)
+```
+We have 12 variables with no nulls that can be used in prediction models
+
+## 5. Predictive Models
+
+#### 5.1 Evaluating variable importance
+```{r}
 model.tree  <- train(Survived ~ .,
-                   data = data_tit,
+                   data = full_data,
                    method = "rpart")
 
 plot(varImp(model.tree), top = 10)
 ```
+We can see dummy variable Male in Sex and Mr in Title most important probably 
+because they make the majority of the data available
 
 
+
+
+
+
+########################
+APPLY ALL CLASSIFICATION MODELS IN THE BOOK that can be applied here
+########################
+
+
+
+
+
+
+
+
+
+
+#### 5.1 Splitting data into train and test datasets
 ```{r}
-# Splitting the data
-split = 0.8
-trainIndex <- createDataPartition(data_tit$Survived, p=split, list=FALSE)
-train <- data_tit[trainIndex,]
-test <- data_tit[-trainIndex,]
+split = 0.7
+trainIndex <- createDataPartition(full_data$Survived, p=split, list=FALSE)
+train <- full_data[trainIndex,]
+test <- full_data[-trainIndex,]
 
-train_labels <- data_tit[trainIndex,]$Survived
-test_labels <- data_tit[-trainIndex,]$Survived
+train_labels <- full_data[trainIndex,]$Survived
+test_labels <- full_data[-trainIndex,]$Survived
 ```
 
 
+#### 5.2. K-NN CLASSIFIER
 ```{r}
-# K-NN Classifier
 ctr <- trainControl(method="repeatedcv",number =10 ,repeats = 3)
 
 knn_classifier <- train(Survived ~ ., data = train, method = "knn", trControl = ctr, preProcess = c("center","scale"), tuneLength = 20, na.action="na.omit")
@@ -328,8 +366,10 @@ print(knn_conf_matrix);CrossTable(knn_predict, test_labels,
            dnn = c('predicted', 'actual'))
 ```
 
+#### 5.3 NB CLASSIFIER
+
 ```{r}
-# Naive Bayes Classifier
+
 naive_classifier <- naiveBayes(train, train_labels)
 naive_predictor <- predict(naive_classifier, test)
 
@@ -338,10 +378,12 @@ nb_conf_matrix <- confusionMatrix(nb_table)
 print(nb_conf_matrix); CrossTable(naive_predictor, test_labels, 
            prop.chisq = FALSE, prop.t = FALSE,
            dnn = c('predicted', 'actual'))
+
 ```
+# 6-3. DECISION TREE
 
 ```{r}
-# Decision Tree
+
 tree_classifier <- C5.0(train[-1], train$Survived)
 tree_predictor <- predict(tree_classifier, test)
 
@@ -368,4 +410,36 @@ rpart.plot(titanic_rpart)
 ```
 
 
+
+
+# 6-4. RANDOM FOREST
+
+```{r}
+set.seed(300)
+rf <- randomForest(Survived ~ Pclass + Sex + Age + SibSp + Parch + 
+                     Fare + Embarked + Title + Child + Mother, data = train)
+
+plot(rf)
+```
+
+```{r}
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
+grid_rf <- expand.grid(.mtry = c(2, 4))
+
+set.seed(300)
+m_rf <- train(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + Child + Mother, 
+              data = train, method = "rf",
+              metric = "Kappa", trControl = ctrl, tuneGrid = grid_rf)
+m_rf
+```
+# Boosted Tree
+```{r}
+grid_c50 <- expand.grid(.model = "tree",
+                          .trials = c(10, 20),
+                          .winnow = "FALSE")
+set.seed(300)
+m_c50 <- train(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + Child + Mother, 
+              data = train, method = "C5.0",
+              metric = "Kappa", trControl = ctrl, tuneGrid = grid_c50)
+```
 

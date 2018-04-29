@@ -1,4 +1,13 @@
+
+> https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776
+> http://blog.revolutionanalytics.com/2013/06/plotting-classification-and-regression-trees-with-plotrpart.html
+> http://www.cmap.polytechnique.fr/~lepennec/R/Learning/Learning.html
+> http://michael.hahsler.net/SMU/EMIS7332/R/viz_classifier.html
+
+
+
 ```{r}
+#library(rattle) # Fancy tree
 library(dplyr)
 library(ggplot2) # Data visualization
 library(readr) # CSV file I/O, e.g. the read_csv function
@@ -750,7 +759,5 @@ m_rf <- train(default ~ ., data = credit, method = "rf",
                 metric = "Kappa", trControl = ctrl,
                 tuneGrid = grid_rf)
 ```
-
-
 
 
