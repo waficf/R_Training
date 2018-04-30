@@ -29,8 +29,10 @@ library(e1071) # Naive Bayes package (naiveBayes)
 library(klaR) # Another naive bayes package (NaiveBayes)
 library('randomForest') # Random Forest
 library(caret) # Splitting data including cross validation
-library(class) # KNN Classifier 
+library(class) # knn Classifier
 library(randomForest) # RANDOM FOREST
+install.packages('varhandle')
+library(varhandle)
 ```
 
 ## 2. Importing Data with Little EDA
@@ -288,17 +290,21 @@ This is our new dataframe with new variable but we have variables that are
 useless and can be dropped
 
 ```{r}
-data_tit <- data_tit[-3]
-data_tit <- data_tit[-10]
+full_data <- data_tit[-3]
+full_data <- full_data[-10]
+
+convert_counts <- function(x){
+  x <- ifelse(x == 1, 'Yes', 'No')
+}
+
+x <- data.frame(lapply(full_data[1], convert_counts))
+full_data[1]<- x
+full_data$Survived <- factor(full_data$Survived)
+
+str(full_data)
 ```
 Dropped variables Name as it has no value in predicting survivars and the 
 variable F_size as it is changes to F_Size_D
-
-```{r}
-full_data <- data_tit
-str(full_data)
-```
-We have 12 variables with no nulls that can be used in prediction models
 
 ## 5. Predictive Models
 
@@ -313,43 +319,40 @@ plot(varImp(model.tree), top = 10)
 We can see dummy variable Male in Sex and Mr in Title most important probably 
 because they make the majority of the data available
 
-
-
-
-
-
-########################
-APPLY ALL CLASSIFICATION MODELS IN THE BOOK that can be applied here
-########################
-
-
-
-
-
-
-
-
-
-
-#### 5.1 Splitting data into train and test datasets
+#### 5.1 K-NN Classifier
 ```{r}
-split = 0.7
-trainIndex <- createDataPartition(full_data$Survived, p=split, list=FALSE)
-train <- full_data[trainIndex,]
-test <- full_data[-trainIndex,]
 
-train_labels <- full_data[trainIndex,]$Survived
-test_labels <- full_data[-trainIndex,]$Survived
+# Normalizing the Fare and Age variables
+normalize<- function(x){
+  return((x-min(x))/(max(x)-min(x)))
+}
+
+normalized_data <- full_data[c(4, 7)]
+normalized_data <- data.frame(lapply(normalized_data, normalize))
+full_data_norm <- full_data
+
+full_data_norm[c(4, 7)] <- normalized_data
+str(full_data_norm)
+
 ```
 
+```{r}
+set.seed(300)
+split = 0.8
+trainIndex <- createDataPartition(full_data_norm$Survived, p=split, list=FALSE)
+norm_train <- full_data_norm[trainIndex,]
+norm_test <- full_data_norm[-trainIndex,]
 
-#### 5.2. K-NN CLASSIFIER
+norm_train_labels <- full_data_norm[trainIndex,]$Survived
+norm_test_labels <- full_data_norm[-trainIndex,]$Survived
+```
+
 ```{r}
 ctr <- trainControl(method="repeatedcv",number =10 ,repeats = 3)
 
-knn_classifier <- train(Survived ~ ., data = train, method = "knn", trControl = ctr, preProcess = c("center","scale"), tuneLength = 20, na.action="na.omit")
+knn_classifier <- train(Survived ~ ., data = norm_train, method = "knn", trControl = ctr, preProcess = c("center","scale"), tuneLength = 20, na.action="na.omit")
 
-knn_classifier;summary(knn_classifier)
+knn_classifier
 ```
 
 ```{r}
@@ -358,32 +361,39 @@ plot(knn_classifier)
 
 
 ```{r}
-knn_predict <- predict(knn_classifier, newdata = test)
-knn_table <- table(actualclass=test_labels, predictedclass=knn_predict)
-knn_conf_matrix <- confusionMatrix(knn_table)
-print(knn_conf_matrix);CrossTable(knn_predict, test_labels, 
-           prop.chisq = FALSE, prop.t = FALSE,
-           dnn = c('predicted', 'actual'))
+knn_predict <- predict(knn_classifier, newdata = norm_test)
+knn_table <- table(actualclass=norm_test_labels, predictedclass=knn_predict)
+confusionMatrix(knn_table)
 ```
 
-#### 5.3 NB CLASSIFIER
-
 ```{r}
-
-naive_classifier <- naiveBayes(train, train_labels)
-naive_predictor <- predict(naive_classifier, test)
-
-nb_table <- table(actualclass=test_labels, predictedclass=naive_predictor)
-nb_conf_matrix <- confusionMatrix(nb_table)
-print(nb_conf_matrix); CrossTable(naive_predictor, test_labels, 
-           prop.chisq = FALSE, prop.t = FALSE,
-           dnn = c('predicted', 'actual'))
-
+CrossTable(x = norm_test_labels, y = knn_predict,prop.chisq=FALSE,dnn = c('Actual', 'Predicted')) 
 ```
-# 6-3. DECISION TREE
+
+#### 5.2 Naive Bayes Classifier
+```{r}
+set.seed(300)
+norm_train_p <- norm_train[2:12]
+norm_test_p <- norm_test[2:12]
+
+naive_classifier <- naiveBayes(norm_train_p, norm_train_labels)
+naive_predictor <- predict(naive_classifier, norm_test_p)
+
+nb_table <- table(actualclass=norm_test_labels, predictedclass=naive_predictor)
+confusionMatrix(nb_table)
+```
+
 
 ```{r}
+CrossTable(x = norm_test_labels, y = naive_predictor, prop.chisq=FALSE,dnn = c('Actual', 'Predicted')) 
+```
+#### 5.4 Decision Tree
 
+# USE NAIVE BAYES DATAFRAMES
+# AFTER ALL CLASSIFIERS DONE, APPLY THE IMPROVE SECTION IN BOOK
+
+
+```{r}
 tree_classifier <- C5.0(train[-1], train$Survived)
 tree_predictor <- predict(tree_classifier, test)
 
