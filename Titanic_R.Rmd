@@ -31,7 +31,6 @@ library('randomForest') # Random Forest
 library(caret) # Splitting data including cross validation
 library(class) # knn Classifier
 library(randomForest) # RANDOM FOREST
-install.packages('varhandle')
 library(varhandle)
 ```
 
@@ -308,17 +307,6 @@ variable F_size as it is changes to F_Size_D
 
 ## 5. Predictive Models
 
-#### 5.1 Evaluating variable importance
-```{r}
-model.tree  <- train(Survived ~ .,
-                   data = full_data,
-                   method = "rpart")
-
-plot(varImp(model.tree), top = 10)
-```
-We can see dummy variable Male in Sex and Mr in Title most important probably 
-because they make the majority of the data available
-
 #### 5.1 K-NN Classifier
 ```{r}
 
@@ -387,51 +375,69 @@ confusionMatrix(nb_table)
 ```{r}
 CrossTable(x = norm_test_labels, y = naive_predictor, prop.chisq=FALSE,dnn = c('Actual', 'Predicted')) 
 ```
-#### 5.4 Decision Tree
+#### 5.3.1 Decision Tree (Vanilla Version)
+```{r}
+tree_classifier <- C5.0(norm_train[-1], norm_train$Survived)
+tree_predictor <- predict(tree_classifier, norm_test)
 
-# USE NAIVE BAYES DATAFRAMES
-# AFTER ALL CLASSIFIERS DONE, APPLY THE IMPROVE SECTION IN BOOK
+tree_table <- table(actualclass=norm_test_labels, predictedclass=tree_predictor)
+confusionMatrix(tree_table)
+```
 
 
 ```{r}
-tree_classifier <- C5.0(train[-1], train$Survived)
-tree_predictor <- predict(tree_classifier, test)
-
-tree_table <- table(actualclass=test_labels, predictedclass=tree_predictor)
-tree_conf_matrix <- confusionMatrix(tree_table)
-print(tree_conf_matrix); CrossTable(tree_predictor, test_labels, 
+CrossTable(x=norm_test_labels, y=tree_predictor,
            prop.chisq = FALSE, prop.t = FALSE,
-           dnn = c('predicted', 'actual'))
+           dnn = c('actual', 'predicted'))
 ```
 
+#### 5.3.2 Decision Tree (Auto Paramter Tuning)
 ```{r}
-str(data_tit)
-```
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
+grid_rf <- expand.grid(.mtry = c(2, 4))
 
-
-```{r}
-# https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776/2
-# https://www.statmethods.net/advstats/cart.html
-titanic_rpart <- rpart(Age ~ Pclass + Sex + SibSp + Parch + Fare + Embarked + Title + F_Size_D, data=data_tit, method="anova")
-```
-
-```{r}
-rpart.plot(titanic_rpart)
-```
-
-
-
-
-# 6-4. RANDOM FOREST
-
-```{r}
+grid_c50 <- expand.grid(.model = "tree",
+                          .trials = c(10, 20),
+                          .winnow = "FALSE")
 set.seed(300)
-rf <- randomForest(Survived ~ Pclass + Sex + Age + SibSp + Parch + 
-                     Fare + Embarked + Title + Child + Mother, data = train)
+m_c50 <- train(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + Child + Mother, 
+              data = train, method = "C5.0",
+              metric = "Kappa", trControl = ctrl, tuneGrid = grid_c50)
 
-plot(rf)
+
+model.tree  <- train(Survived ~ .,
+                   data = norm_train,
+                   method = "C5.0",
+                   trControl = ctrl, 
+                   tuneGrid = grid_c50)
+
+plot(varImp(model.tree), top = 10)
 ```
 
+#### 5.3.3 Decision Tree (Classification and regression trees via Rpart)
+```{r}
+# https://www.statmethods.net/advstats/cart.html
+tree_fit <- rpart(Survived ~ .,
+              data = norm_train,
+              method = "class")
+rsq.rpart(tree_fit)
+```
+
+```{r}
+rpart.plot(tree_fit)
+```
+
+
+#### 5.4.1 Random Forest (Vanilla Version)
+```{r}
+rf <- randomForest(Survived ~ ., data = norm_train)
+
+
+print(rf) # view results 
+importance(rf) # importance of each predictor
+```
+
+#### 5.4.2 Random Forest (Auto Paramter Tuning)
 ```{r}
 ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
 grid_rf <- expand.grid(.mtry = c(2, 4))
@@ -442,14 +448,5 @@ m_rf <- train(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + 
               metric = "Kappa", trControl = ctrl, tuneGrid = grid_rf)
 m_rf
 ```
-# Boosted Tree
-```{r}
-grid_c50 <- expand.grid(.model = "tree",
-                          .trials = c(10, 20),
-                          .winnow = "FALSE")
-set.seed(300)
-m_c50 <- train(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked + Title + Child + Mother, 
-              data = train, method = "C5.0",
-              metric = "Kappa", trControl = ctrl, tuneGrid = grid_c50)
-```
+
 

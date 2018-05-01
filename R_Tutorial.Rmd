@@ -3,7 +3,8 @@
 > http://blog.revolutionanalytics.com/2013/06/plotting-classification-and-regression-trees-with-plotrpart.html
 > http://www.cmap.polytechnique.fr/~lepennec/R/Learning/Learning.html
 > http://michael.hahsler.net/SMU/EMIS7332/R/viz_classifier.html
-
+# https://discuss.analyticsvidhya.com/t/what-are-the-packages-required-to-plot-a-fancy-rpart-plot-in-r/6776/2
+# https://www.statmethods.net/advstats/cart.html
 
 
 ```{r}
