@@ -33,6 +33,7 @@ library(class) # knn Classifier
 library(randomForest) # RANDOM FOREST
 library(varhandle)
 library(kernlab)
+library(pROC)
 ```
 
 ## 2. Importing Data with Little EDA
@@ -307,8 +308,6 @@ Dropped variables Name as it has no value in predicting survivars and the
 variable F_size as it is changes to F_Size_D
 
 ## 5. Predictive Models
-
-#### 5.1.1 K-NN Classifier
 ```{r}
 
 # Normalizing the Fare and Age variables
@@ -336,6 +335,7 @@ norm_train_labels <- full_data_norm[trainIndex,]$Survived
 norm_test_labels <- full_data_norm[-trainIndex,]$Survived
 ```
 
+#### 5.1.1 K-NN Classifier
 ```{r}
 ctr <- trainControl(method="repeatedcv",number =10 ,repeats = 3)
 
@@ -514,41 +514,71 @@ set.seed(300)
 m_rf <- train(Survived ~ ., 
               data = full_data, 
               method = "rf",
-              metric = 'Kappa', 
+              metric = 'Accuracy', 
               trControl = ctrl, 
               tuneGrid = grid_rf)
 print(m_rf);plot(m_rf)
 ```
 
-#### 5.5.1 SVM
+#### 5.5.1 SVM with manual parameter choosing (Radial Kernel)
 ```{r}
-svm_classifier <- ksvm(Survived ~ ., data = norm_train, kernel = "vanilladot") #kernelrbf: rbfdot
+# Setup for cross validation
+ctrl <- trainControl(method="repeatedcv",   # 10fold cross validation
+                     repeats=5,		    # do 5 repititions of cv
+                     summaryFunction=twoClassSummary,	# Use AUC to pick the best model
+                     classProbs=TRUE)
+ 
+ 
+#Train and Tune the SVM
+svm.tune <- train(Survived~.,
+                  data= norm_train,
+                  method = "svmRadial",   # Radial kernel
+                  tuneLength = 9,					# 9 values of the cost function
+                  preProc = c("center","scale"),  # Center and scale data
+                  metric="ROC",
+                  trControl=ctrl)
+ 
+svm.tune
+```
+#### SVM with auto parameter choosing (Radial Kernel)
+```{r}
+set.seed(1492)
+# Use the expand.grid to specify the search space	
+grid <- expand.grid(sigma = c(.01, .015, 0.2),
+                    C = c(0.75, 0.9, 1, 1.1, 1.25)
+)
+ 
+#Train and Tune the SVM
+svm.tune_2 <- train(Survived~.,
+                  data= norm_train,
+                  method = "svmRadial",
+                  preProc = c("center","scale"),
+                  metric="ROC",
+                  tuneGrid = grid,
+                  trControl=ctrl)
+ 
+svm.tune_2
+```
 
-svm_predictor <- predict(svm_classifier, norm_test)
+```{r}
+rValues <- resamples(list(svm=svm.tune,svm.tune_2))
+rValues$values
+```
+```{r}
+bwplot(rValues,metric="ROC",ylab =c("Radial kernel", "Grid Search Radial kernel"))	
+```
+
+```{r}
+svm_predictor <- predict(svm.tune_2, norm_test)
 
 CrossTable(x=norm_test_labels, y=svm_predictor,
            prop.chisq = FALSE, prop.t = FALSE,
            dnn = c('actual', 'predicted'))
 ```
-#### 5.5.1 SVM (Auto Parameter Tuning)
-```{r}
-#modelLookup("svmRadial")
-ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5)
-grid_svm <- expand.grid(.sigma= c(0, 5, 10, 15), 
-                        .C= c(0:5))
 
-set.seed(300)
-m_svm <- train(Survived ~ ., 
-              data = full_data, 
-              method = "svmRadial",
-              metric = 'Kappa', 
-              trControl = ctrl, 
-              tuneGrid = grid_svm)
 
-print(m_rf);plot(m_rf)
-```
 
-# STUDY SVM in book
 # Study how the model evaluation and then study how to evaluate every single 
 # classification model above
+# http://blog.revolutionanalytics.com/2015/10/the-5th-tribe-support-vector-machines-and-caret.html
 
