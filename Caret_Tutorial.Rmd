@@ -1,0 +1,111 @@
+```{r}
+library(earth)
+library(mlbench)
+```
+#Preprocessing
+
+#### Creating Dummy Variables
+```{r}
+data(etitanic)
+head(model.matrix(survived ~ ., data = etitanic))
+```
+```{r}
+dummies <- dummyVars(survived ~ ., data = etitanic)
+head(predict(dummies, newdata = etitanic))
+```
+
+#### Near Zero Variance Predictors
+```{r}
+data(mdrr)
+data.frame(table(mdrrDescr$nR11))
+```
+
+```{r}
+# Looking at the MDRR data, the nearZeroVar function can be used to identify near zero-variance variables
+ #(the saveMetrics argument can be used to show the details and usually defaults to FALSE)
+nzv <- nearZeroVar(mdrrDescr, saveMetrics= TRUE)
+nzv[nzv$nzv,][1:10,] # First 10 rows
+```
+
+```{r}
+nzv <- nearZeroVar(mdrrDescr)
+filteredDescr <- mdrrDescr[, -nzv]
+dim(filteredDescr)
+```
+
+#### Identifying Correlated Predictors
+```{r}
+descrCor <-  cor(filteredDescr)
+highCorr <- sum(abs(descrCor[upper.tri(descrCor)]) > .999)
+highCorr
+#there are 65 descriptors that are almost perfectly correlated (|correlation| > 0.999)
+```
+
+```{r}
+highlyCorDescr <- findCorrelation(descrCor, cutoff = .75)
+filteredDescr <- filteredDescr[,-highlyCorDescr]
+descrCor2 <- cor(filteredDescr)
+summary(descrCor2[upper.tri(descrCor2)])
+```
+
+#### Centering and Scaling
+```{r}
+set.seed(96)
+inTrain <- sample(seq(along = mdrrClass), length(mdrrClass)/2)
+
+training <- filteredDescr[inTrain,]
+test <- filteredDescr[-inTrain,]
+trainMDRR <- mdrrClass[inTrain]
+testMDRR <- mdrrClass[-inTrain]
+
+#The function preProcess doesn’t actually pre-process the data. 
+#predict.preProcess is used to pre-process this and other data sets.
+
+preProcValues <- preProcess(training, method = c("center", "scale"))
+
+trainTransformed <- predict(preProcValues, training)
+testTransformed <- predict(preProcValues, test)
+```
+
+#### Transforming Predictors (PCA)
+```{r}
+
+```
+
+
+# Model Training and Tuning
+
+```{r}
+data(Sonar)
+str(Sonar[, 1:10])
+```
+
+```{r}
+set.seed(998)
+inTraining <- createDataPartition(Sonar$Class, p = .75, list = FALSE)
+training <- Sonar[ inTraining,]
+testing  <- Sonar[-inTraining,]
+```
+
+
+```{r}
+fitControl <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           ## repeated ten times
+                           repeats = 10)
+
+set.seed(825)
+gbmFit1 <- train(Class ~ ., data = training, 
+                 method = "gbm", 
+                 trControl = fitControl,
+                 ## This last option is actually one
+                 ## for gbm() that passes through
+                 verbose = FALSE)
+gbmFit1
+```
+
+```{r}
+
+```
+
