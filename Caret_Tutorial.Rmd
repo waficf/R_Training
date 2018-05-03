@@ -1,6 +1,7 @@
 ```{r}
 library(earth)
 library(mlbench)
+library(gbm) #Gradient Boost
 ```
 #Preprocessing
 
@@ -89,11 +90,12 @@ testing  <- Sonar[-inTraining,]
 
 
 ```{r}
+library(gbm)
 fitControl <- trainControl(## 10-fold CV
                            method = "repeatedcv",
                            number = 10,
                            ## repeated ten times
-                           repeats = 10)
+                           repeats = 3)
 
 set.seed(825)
 gbmFit1 <- train(Class ~ ., data = training, 
@@ -106,6 +108,57 @@ gbmFit1
 ```
 
 ```{r}
+gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
+                        n.trees = (1:30)*50, 
+                        shrinkage = 0.1,
+                        n.minobsinnode = 20)
+                        
+nrow(gbmGrid)
+
+set.seed(825)
+gbmFit2 <- train(Class ~ ., data = training, 
+                 method = "gbm", 
+                 trControl = fitControl, 
+                 verbose = FALSE, 
+                 ## Now specify the exact models 
+                 ## to evaluate:
+                 tuneGrid = gbmGrid)
+gbmFit2
+```
+
+#### Plotting the Resampling Profile
+```{r}
+# The plot function can be used to examine the relationship between the estimates of performance and the tuning parameters
+#trellis.par.set(caretTheme())
+plot(gbmFit2)  
+```
+```{r}
+plot(gbmFit2, metric = "Kappa")
+```
+
+```{r}
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 5,
+                           ## Estimate class probabilities
+                           classProbs = TRUE,
+                           ## Evaluate performance using 
+                           ## the following function
+                           summaryFunction = twoClassSummary)
+
+set.seed(825)
+gbmFit3 <- train(Class ~ ., data = training, 
+                 method = "gbm", 
+                 trControl = fitControl, 
+                 verbose = FALSE, 
+                 tuneGrid = gbmGrid,
+                 ## Specify which metric to optimize
+                 metric = "ROC")
+gbmFit3
+```
+
+```{r}
 
 ```
+
 

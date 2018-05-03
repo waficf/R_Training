@@ -34,6 +34,7 @@ library(randomForest) # RANDOM FOREST
 library(varhandle)
 library(kernlab)
 library(pROC)
+library(gbm) #Gradient Boost
 ```
 
 ## 2. Importing Data with Little EDA

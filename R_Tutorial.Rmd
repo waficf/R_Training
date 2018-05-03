@@ -30,6 +30,7 @@ library(irr)
 library(ipred) # Bagging 
 library(adabag) # ADA BOOST
 library(randomForest) # RANDOM FOREST
+library(gbm) #Gradient Boost
 ```
 
 ```{r}
