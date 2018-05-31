@@ -90,8 +90,8 @@ With median Fare of 14.45, some members paid 512 which is quite expensive
 ```{r}
 summary(data_tit$Age)
 ```
-Average age is around 30 which I believe is due to the european migration
-to the US at the start of the 20th century in pusuit of a better life at the new
+Average age is around 30 which I believe is due to the European migration
+to the US at the start of the 20th century in pursuit of a better life at the new
 land (later known as the American Dream, term coined din 1931)
 
 ```{r}
@@ -160,7 +160,7 @@ ggplot(aes(x=Age, y=Fare, colour = factor(Survived), shape=Sex), data=data_tit)+
   facet_grid(Pclass~Embarked)+
   scale_y_log10()
 ```
-The 2 points are survivars and females whom Fare is a around 100
+The 2 points are survivors and females whom Fare is a around 100
 
 ```{r}
 data_tit[830,]$Fare;data_tit[62,]$Fare
@@ -173,7 +173,7 @@ data_embark <- data_tit[-c(62, 830),]
 median(data_embark[data_embark$Pclass == 1 & data_embark$Embarked == 'C',]$Fare);median(data_embark[data_embark$Pclass == 1 & data_embark$Embarked == 'S',]$Fare)
 ```
 Since they both paid 80 and the median Fare for C is 78 and S is 52, we better 
-put them in Embarkment C
+put them in Embankment C
 
 ```{r}
 ggplot(aes(x=Embarked, y=Fare, fill=factor(Pclass)), data=data_embark)+
@@ -202,7 +202,7 @@ data_tit$Title <- gsub("(.*, )|(\\..*)", '',data_tit$Name)
 table(data_tit$Title, data_tit$Sex)
 ```
 I would never thought of extracting data from the Title variable but after 
-reading Megan work I did and we can see some really valuable stufff here
+reading Megan work I did and we can see some really valuable stuff here
 
 ```{r}
 rare_titles <- c("Capt", "Col", "Don", "Dr", "Jonkheer", "Lady", "Major", "Rev", "Sir", "the Countess")
@@ -228,7 +228,7 @@ data_tit$F_Size <-  data_tit$SibSp + data_tit$Parch +1
 table(data_tit$F_Size)
 ```
 More than half of travelers are singles, I bet most are single young men in
-their thirtees
+their thirteens
 
 ```{r}
 ggplot(aes(x=F_Size, fill=factor(Survived)),data=data_tit)+
@@ -288,7 +288,7 @@ data_tit$Title <- factor(data_tit$Title)
 data_tit$F_Size_D <- factor(data_tit$F_Size_D)
 str(data_tit)
 ```
-This is our new dataframe with new variable but we have variables that are
+This is our new data frame with new variable but we have variables that are
 useless and can be dropped
 
 ```{r}
@@ -305,7 +305,7 @@ full_data$Survived <- factor(full_data$Survived)
 
 str(full_data)
 ```
-Dropped variables Name as it has no value in predicting survivars and the 
+Dropped variables Name as it has no value in predicting survivors and the 
 variable F_size as it is changes to F_Size_D
 
 ## 5. Predictive Models

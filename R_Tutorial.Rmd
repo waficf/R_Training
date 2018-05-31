@@ -429,7 +429,7 @@ summary(groceries)
 ```
 
 ```{r}
-inspect(groceries[1:3])
+inspect(groceries[1:5])
 ```
 
 ```{r}

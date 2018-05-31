@@ -1,0 +1,126 @@
+# Housing Prices Submission
+***
+
+## Importing the needed libraries
+```{r eval=FALSE, Packages}
+library(dplyr)
+library(ggplot2) # Data visualization
+library(VIM)  # Plots missing data
+library(mice)
+library(ggthemes)
+library(scales) # Scaling yaxis
+library(caret)
+library(ggcorrplot)
+library(grid)
+library(gridExtra)
+library(corrplot)
+library(knitr) # Convert to html
+library(rpart) # Fancy decisionmaking plots
+library(rpart.plot) # Draw tree
+```
+
+
+## Data Exploration
+```{r}
+wholesale <- read.csv('/Users/wafic/Downloads/data/Unsupervised data/Wholesale_customers_data.csv')
+```
+
+```{r}
+str(wholesale)
+```
+
+```{r}
+head(wholesale)
+```
+
+#### Implementation: Selecting Samples
+
+For the purposes of this project, the features 'Channel' and 'Region' will be 
+excluded in the analysis — with focus instead on the six product categories 
+recorded for customers
+
+```{r}
+data <- wholesale[3:8]
+data
+```
+
+```{r}
+summary(data)
+```
+
+```{r}
+ggplot(stack(data), aes(x=ind, y = values))+
+  geom_boxplot()
+```
+
+
+```{r}
+data[c(67, 155, 339, 334),]
+```
+
+Question 1
+Consider the total purchase cost of each product category and the statistical 
+description of the dataset above for your sample customers.
+What kind of establishment (customer) could each of the three samples you've 
+chosen represent?
+
+67: Cafe
+I think it is a cafe because it is sure not a restaurant or a house as they are
+very low Fresh & Frozen but for groceries and Detergents_Paper they have average 
+spending which can be justified due to cleaning bathrooms and tables
+
+155: House
+The fact that the spending is not on the first Quartile in any of the products
+makes it normal for a house where you buy lots of Fresh products but not in the
+thousands, same applies to the rest
+
+339: Retail Store
+With minimal spending on Fresh, Milk and Detergents_Paper along with huge 
+Frozen and Grocery purchases, it sure not a house nor a restautant or a hotel.
+
+334: Hotel or Restaurant
+The huge spending on Detergents_Paper and Grocery makes it very unlikely to be 
+house but sure a business but unlikey to be a retailer
+
+
+#### Implementation: Feature Relevance
+One interesting thought to consider is if one (or more) of the six product 
+categories is actually relevant for understanding customer purchasing. 
+That is to say, is it possible to determine whether customers purchasing some 
+amount of one category of products will necessarily purchase some proportional 
+amount of another category of products? We can make this determination quite 
+easily by training a supervised regression learner on a subset of the data with 
+one feature removed, and then score how well that model can predict the removed 
+feature.
+
+```{r}
+set.seed(300)
+split = 0.8
+trainIndex <- createDataPartition(data$Detergents_Paper, p=split, list=FALSE)
+train <- data[trainIndex,]
+test <- data[-trainIndex,]
+```
+
+```{r}
+fit <- rpart(Detergents_Paper ~ ., data = train, control=rpart.control(minsplit=5))
+rpart.plot(fit, digits = 5)
+```
+
+
+```{r}
+rsq.rpart(fit)
+```
+
+
+```{r}
+corr <- cor(as.matrix(data))
+corrplot.mixed(corr, tl.col="black", tl.pos = "lt")
+```
+
+```{r}
+col<- colorRampPalette(c("blue", "white", "red"))(20)
+heatmap(x = corr, col = col, symm = TRUE)
+```
+
+> See how to interpret a table
+> Make sure to see how to read the rsquared in rpart
