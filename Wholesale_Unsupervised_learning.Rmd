@@ -96,19 +96,29 @@ feature.
 ```{r}
 set.seed(300)
 split = 0.8
-trainIndex <- createDataPartition(data$Detergents_Paper, p=split, list=FALSE)
-train <- data[trainIndex,]
-test <- data[-trainIndex,]
-```
 
-```{r}
-fit <- rpart(Detergents_Paper ~ ., data = train, control=rpart.control(minsplit=5))
-rpart.plot(fit, digits = 5)
-```
+features <- names(data)
 
-
-```{r}
-rsq.rpart(fit)
+for (i in features){
+  trainIndex <- createDataPartition(data[,i], p=split, list=FALSE)
+  
+  train <- data[trainIndex,]
+  train_new <- subset(train, select = -c(data[,i]) )
+  
+  test <- data[-trainIndex,]
+  test_new <- subset(test, select = -c(data[,i]) )
+  
+  tuneGrid <- expand.grid(cp = c(0.01, 0.05))
+  
+  rpart_fit <- train(x = train_new, y = train[,i], 
+                     method = "rpart",
+                     tuneGrid = tuneGrid,
+                     control = rpart.control(minsplit = 10, minbucket = 5))
+  
+  print(paste('Predictor is: ', i))
+  pred <- predict(rpart_fit, test) 
+  
+}
 ```
 
 
