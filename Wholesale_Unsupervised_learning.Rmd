@@ -116,10 +116,33 @@ for (i in features){
                      control = rpart.control(minsplit = 10, minbucket = 5))
   
   print(paste('Predictor is: ', i))
-  pred <- predict(rpart_fit, test) 
+  print(postResample(pred = rpart_fit, obs = test[,i]))
   
 }
 ```
+
+
+```{r}
+set.seed(300)
+trainIndexs <- createDataPartition(data$Fresh, p=0.8, list=FALSE)
+trains <- data[trainIndexs,]
+tests <- data[-trainIndexs,]
+
+set.seed(2500)
+tuneGrid <- expand.grid(cp = c(0.01, 0.05))
+
+rpart_fit <- train(x = trains[-1], y = trains$Fresh,
+                   method = "rpart",
+                   tuneGrid = tuneGrid,
+                   control = rpart.control(minsplit = 5, minbucket = 2))
+
+pred <- predict(rpart_fit, tests)
+
+postResample(pred = pred, obs = tests$Fresh)
+pred
+
+```
+
 
 
 ```{r}
