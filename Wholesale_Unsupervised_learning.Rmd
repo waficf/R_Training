@@ -17,6 +17,8 @@ library(corrplot)
 library(knitr) # Convert to html
 library(rpart) # Fancy decisionmaking plots
 library(rpart.plot) # Draw tree
+library(GGally)
+library(factoextra) # PCA Cluster
 ```
 
 
@@ -95,7 +97,7 @@ feature.
 
 ```{r}
 set.seed(300)
-split = 0.8
+split = 0.75
 
 features <- names(data)
 
@@ -104,10 +106,9 @@ for (i in features){
   
   train <- data[trainIndex,]
   train_new <- subset(train, select = -c(data[,i]) )
-  
   test <- data[-trainIndex,]
-  test_new <- subset(test, select = -c(data[,i]) )
   
+  set.seed(3000)
   tuneGrid <- expand.grid(cp = c(0.01, 0.05))
   
   rpart_fit <- train(x = train_new, y = train[,i], 
@@ -116,44 +117,96 @@ for (i in features){
                      control = rpart.control(minsplit = 10, minbucket = 5))
   
   print(paste('Predictor is: ', i))
-  print(postResample(pred = rpart_fit, obs = test[,i]))
+  predict = predict(rpart_fit, test)
+  print(postResample(pred = predict, obs = test[,i]))
+}
+```
+
+```{r}
+rpart.plot(rpart_fit$finalModel)
+```
+
+
+```{r echo = FALSE, message=FALSE, warning=FALSE, error=FALSE, fig.width=7, fig.height=4}
+ggpairs(data=data,
+        upper = list(continuous = "cor"),
+        lower = list(continuous = "points"),
+        title="Wholesale Features")
+```
+
+```{r}
+log_data <- log10(data)
+```
+
+```{r echo = FALSE, message=FALSE, warning=FALSE, error=FALSE, fig.width=7, fig.height=4}
+ggpairs(data=log_data,
+        upper = list(continuous = "cor"),
+        lower = list(continuous = "points"),
+        title="Wholesale Features")
+```
+
+```{r}
+head(log_data)
+```
+
+#### Outliers
+```{r}
+for (i in features){
+  q1 <- quantile(log_data[,i], 0.25)
+  q3 <- quantile(log_data[,i], 0.75)
+  
+  outlier_step <- 1.5 * (q3-q1)
+  print(log_data[(log_data[,i] < (q1 - outlier_step)) | (log_data$Fresh > (q3 + outlier_step)),])
   
 }
 ```
 
-
 ```{r}
-set.seed(300)
-trainIndexs <- createDataPartition(data$Fresh, p=0.8, list=FALSE)
-trains <- data[trainIndexs,]
-tests <- data[-trainIndexs,]
-
-set.seed(2500)
-tuneGrid <- expand.grid(cp = c(0.01, 0.05))
-
-rpart_fit <- train(x = trains[-1], y = trains$Fresh,
-                   method = "rpart",
-                   tuneGrid = tuneGrid,
-                   control = rpart.control(minsplit = 5, minbucket = 2))
-
-pred <- predict(rpart_fit, tests)
-
-postResample(pred = pred, obs = tests$Fresh)
-pred
-
+ggplot(data = stack(log_data), aes(x=ind, y = values))+
+  geom_boxplot()
 ```
 
 
+```{r}
+#Dropping the Outliers
+good_data
+```
+
+
+##### PCA 
 
 ```{r}
-corr <- cor(as.matrix(data))
-corrplot.mixed(corr, tl.col="black", tl.pos = "lt")
+# Use only 30 rows now
+test_data <- data[1:30,]
+```
+
+
+```{r}
+res.pca <- prcomp(test_data, scale = TRUE)
+fviz_eig(res.pca)
+```
+
+
+```{r}
+fviz_pca_ind(res.pca,
+             col.ind = "cos2", # Color by the quality of representation
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
 ```
 
 ```{r}
-col<- colorRampPalette(c("blue", "white", "red"))(20)
-heatmap(x = corr, col = col, symm = TRUE)
+fviz_pca_var(res.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
 ```
 
-> See how to interpret a table
-> Make sure to see how to read the rsquared in rpart
+```{r}
+fviz_pca_biplot(res.pca, repel = TRUE,
+                col.var = "#2E9FDF", # Variables color
+                col.ind = "#696969"  # Individuals color
+                )
+```
+
