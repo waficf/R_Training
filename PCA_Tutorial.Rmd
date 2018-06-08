@@ -1,0 +1,301 @@
+# PCA Training
+
+http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practical-guide/112-pca-principal-component-analysis-essentials/
+
+#### 
+```{r}
+library("FactoMineR")
+library("factoextra")
+library(corrplot)
+```
+
+```{r}
+data(decathlon2)
+decathlon2
+```
+
+In PCA terminology, our data contains :
+
+- Active individuals (rows 1:23) : Individuals that are used during the principal component analysis.
+- Supplementary individuals (rows 24:27) : The coordinates of these individuals will be predicted using the PCA information and parameters obtained with active individuals/variables
+- Active variables (columns 1:10) : Variables that are used for the principal component analysis.
+- Supplementary variables: As supplementary individuals, the coordinates of these variables will be predicted also. These can be:
+  - Supplementary continuous variables: Columns 11 and 12 corresponding respectively to the rank and the points of athletes.
+  - Supplementary qualitative variables: Column 13 corresponding to the two athlete-tic meetings (2004 Olympic Game or 2004 Decastar). This is a categorical (or factor) variable factor. It can be used to color individuals by groups.
+
+## A. Active Elements
+
+```{r}
+decathlon2.active <- decathlon2[1:23, 1:10]
+decathlon2.active
+```
+
+```{r}
+res <- cor(decathlon2.active)
+corrplot(res, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+```
+
+## Data standardization
+
+In principal component analysis, variables are often scaled (i.e. standardized). This is particularly recommended when variables are measured in different scales (e.g: kilograms, kilometers, centimeters, …); otherwise, the PCA outputs obtained will be severely affected.
+
+```{r}
+res.pca <- PCA(decathlon2.active, graph = FALSE)
+res.pca
+```
+
+## Eigenvalues / Variances
+Eigenvalues measure the amount of variation retained by each principal component. Eigenvalues are large for the first PCs and small for the subsequent PCs
+```{r}
+eig.val <- get_eigenvalue(res.pca)
+eig.val
+```
+The first three principal components explain 72% of the variation. This is an acceptably large percentage.
+
+#### Plotting the eigenvalues
+```{r}
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 50))
+```
+From the plot above, we might want to stop at the fifth principal component. 87% of the information (variances) contained in the data are retained by the first five principal components.
+
+## Graph of variables
+
+#### PCA Components of Variables
+Extract the results, for variables, from a PCA output. This function provides a list of matrices containing all 
+the results for the active variables (coordinates, correlation between variables and axes, squared cosine and contributions)
+```{r}
+var <- get_pca_var(res.pca)
+var
+```
+#### Componenents can be accessed as below
+```{r}
+# Coordinates
+head(var$coord)
+# Cos2: quality on the factore map
+head(var$cos2)
+# Contributions to the principal components
+head(var$contrib)
+```
+
+#### Correlation circle
+```{r}
+fviz_pca_var(res.pca, col.var = "black")
+```
+The plot above is also known as variable correlation plots. It shows the relationships between all variables. It can be interpreted as follow:
+
+- Positively correlated variables are grouped together.
+- Negatively correlated variables are positioned on opposite sides of the plot origin (opposed quadrants).
+- The distance between variables and the origin measures the quality of the variables on the factor map. Variables that are away from the origin are WELL represented on the factor map.
+
+#### Quality of representation
+The quality of representation of the variables on factor map is called cos2 (square cosine, squared coordinates)
+```{r}
+corrplot(var$cos2, is.corr=FALSE)
+```
+- A high cos2 indicates a good representation of the variable on the principal component. In this case the variable is positioned close to the circumference of the correlation circle.
+
+- A low cos2 indicates that the variable is not perfectly represented by the PCs. In this case the variable is close to the center of the circle.
+
+- The cos2 values are used to estimate the quality of the representation
+
+- The closer a variable is to the circle of correlations, the better its representation on the factor map (and the more important it is to interpret these components)
+
+- Variables that are closed to the center of the plot are less important for the first components.
+
+
+```{r}
+# Color by cos2 values: quality on the factor map
+fviz_pca_var(res.pca, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             repel = TRUE # Avoid text overlapping
+             )
+```
+variables with low cos2 values will be colored in “white”
+variables with mid cos2 values will be colored in “blue"
+variables with high cos2 values will be colored in "red"
+
+#### Contributions of variables to PCs
+```{r}
+corrplot(var$contrib, is.corr=FALSE) 
+```
+- Variables that are correlated with PC1 (i.e., Dim.1) and PC2 (i.e., Dim.2) are the most important in explaining the variability in the data set.
+- Variables that do not correlated with any PC or correlated with the last dimensions are variables with low contribution and might be removed to simplify the overall analysis.
+
+```{r}
+# Contributions of variables to PC1
+fviz_contrib(res.pca, choice = "var", axes = 1, top = 10)
+# Contributions of variables to PC2
+fviz_contrib(res.pca, choice = "var", axes = 2, top = 10)
+```
+The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/10 = 10%. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
+
+It can be seen that the variables - X100m, Long.jump and Pole.vault - contribute the most to the dimensions 1 and 2.
+
+#### Color by groups
+```{r}
+# Create a grouping variable using kmeans
+# Create 3 groups of variables (centers = 3)
+set.seed(123)
+res.km <- kmeans(var$coord, centers = 3, nstart = 25)
+grp <- as.factor(res.km$cluster)
+# Color variables by groups
+fviz_pca_var(res.pca, col.var = grp, 
+             palette = c("#0073C2FF", "#EFC000FF", "#868686FF"),
+             legend.title = "Cluster")
+```
+#### Dimension description
+dimension description, can be used to identify the most significantly associated variables with a given principal component . It can be used as follow:
+```{r}
+res.desc <- dimdesc(res.pca, axes = c(1,2), proba = 0.05)
+# Description of dimension 1
+res.desc$Dim.1
+```
+
+```{r}
+# Description of dimension 2
+res.desc$Dim.2
+```
+
+## Graph of individuals
+
+#### PCA for Individuals
+```{r}
+ind <- get_pca_ind(res.pca)
+ind
+```
+#### Individuals Componenets Accessed as below
+```{r}
+# Coordinates of individuals
+head(ind$coord)
+# Quality of individuals
+head(ind$cos2)
+# Contributions of individuals
+head(ind$contrib)
+```
+
+#### Plots: quality and contribution
+Like variables, it’s also possible to color individuals by their cos2 values:
+```{r}
+fviz_pca_ind(res.pca, col.ind = "cos2", 
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE # Avoid text overlapping (slow if many points)
+             )
+```
+
+To create a bar plot of the quality of representation (cos2) of individuals on the factor map, you can use the function fviz_cos2() as previously described for variables:
+```{r}
+fviz_cos2(res.pca, choice = "ind")
+```
+
+
+To visualize the contribution of individuals to the first two principal components, type this:
+```{r}
+# Total contribution on PC1 and PC2
+fviz_contrib(res.pca, choice = "ind", axes = 1:2)
+```
+
+#### Color by groups
+```{r}
+iris.pca <- PCA(iris[,-5], graph = FALSE)
+```
+
+To add a concentration ellipse around each group, specify the argument addEllipses = TRUE. The argument palette can be used to change group colors.
+```{r}
+fviz_pca_ind(iris.pca,
+             geom.ind = "point", # show points only (nbut not "text")
+             col.ind = iris$Species, # color by groups
+             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             addEllipses = TRUE, # Concentration ellipses
+             legend.title = "Groups"
+             )
+```
+
+```{r}
+# Add confidence ellipses
+fviz_pca_ind(iris.pca, geom.ind = "point", col.ind = iris$Species, 
+             palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+             addEllipses = TRUE, ellipse.type = "confidence",
+             legend.title = "Groups"
+             )
+```
+
+## Biplot of Individuals and Variables
+
+```{r}
+fviz_pca_biplot(res.pca, repel = TRUE,
+                col.var = "#2E9FDF", # Variables color
+                col.ind = "#696969"  # Individuals color
+                )
+```
+
+```{r}
+fviz_pca_biplot(iris.pca, 
+                col.ind = iris$Species, palette = "jco", 
+                addEllipses = TRUE, label = "var",
+                col.var = "black", repel = TRUE,
+                legend.title = "Species") 
+```
+
+## B. Supplementary Elements
+
+```{r}
+res.pca <- PCA(decathlon2, ind.sup = 24:27, 
+               quanti.sup = 11:12, quali.sup = 13, graph=FALSE)
+```
+
+#### 1. Quantitative Variables
+Predicted results (coordinates, correlation and cos2) for the supplementary quantitative variables:
+```{r}
+res.pca$quanti.sup
+```
+
+
+```{r}
+# Change color of variables
+fviz_pca_var(res.pca,
+             col.var = "black",     # Active variables
+             col.quanti.sup = "red" # Suppl. quantitative variables
+             )
+# Hide active variables on the plot, 
+# show only supplementary variables
+fviz_pca_var(res.pca, invisible = "var")
+# Hide supplementary variables
+fviz_pca_var(res.pca, invisible = "quanti.sup")
+```
+
+#### 2. All Individuals
+Predicted results for the supplementary individuals (ind.sup):
+```{r}
+res.pca$ind.sup
+p <- fviz_pca_ind(res.pca, col.ind.sup = "blue", repel = TRUE)
+p <- fviz_add(p, res.pca$quali.sup$coord, color = "red")
+p
+```
+
+#### Qualitative variables
+The results concerning the supplementary qualitative variable are:
+```{r}
+res.pca$quali
+```
+
+```{r}
+fviz_pca_ind(res.pca, habillage = 13,
+             addEllipses =TRUE, ellipse.type = "confidence",
+             palette = "jco", repel = TRUE) 
+```
+
+```{r}
+# Visualize variable with cos2 >= 0.6
+fviz_pca_var(res.pca, select.var = list(cos2 = 0.6))
+# Top 5 active variables with the highest cos2
+fviz_pca_var(res.pca, select.var= list(cos2 = 5))
+# Select by names
+name <- list(name = c("Long.jump", "High.jump", "X100m"))
+fviz_pca_var(res.pca, select.var = name)
+# top 5 contributing individuals and variable
+fviz_pca_biplot(res.pca, select.ind = list(contrib = 5), 
+               select.var = list(contrib = 5),
+               ggtheme = theme_minimal())
+```
+

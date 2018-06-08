@@ -122,9 +122,6 @@ for (i in features){
 }
 ```
 
-```{r}
-rpart.plot(rpart_fit$finalModel)
-```
 
 
 ```{r echo = FALSE, message=FALSE, warning=FALSE, error=FALSE, fig.width=7, fig.height=4}
