@@ -1,0 +1,88 @@
+# Clustering
+http://www.sthda.com/english/articles/25-cluster-analysis-in-r-practical-guide/111-types-of-clustering-methods-overview-and-quick-start-r-code/
+
+```{r}
+library(ggplot2)
+library("cluster")
+library("factoextra")
+library("magrittr")
+```
+
+```{r}
+data("USArrests")
+my_data <- USArrests
+head(my_data,10)
+```
+
+```{r}
+my_data <- na.omit(my_data)
+my_data <- scale(my_data)
+head(my_data)
+```
+## Distance Computation
+
+#### Correlation based distance for numeric values
+```{r}
+sub_data <- my_data[1:10,]
+res.dist <- get_dist(sub_data, stand = TRUE, method = "pearson")
+fviz_dist(res.dist)
+```
+> Red: high similarity (ie: low dissimilarity) | Blue: low similarity
+
+## Partitioning clustering
+Partitioning clustering are clustering methods used to classify observations, 
+within a data set, into multiple groups based on their similarity
+
+### K Means Clustering:
+http://www.sthda.com/english/articles/27-partitioning-clustering-essentials/87-k-means-clustering-essentials/
+
+#### Determining the ultimate number of clusters
+```{r}
+fviz_nbclust(my_data, kmeans, method = "wss")
+```
+
+```{r}
+set.seed(123)
+km.res <- kmeans(my_data, 4, nstart = 25)
+km.res
+```
+
+```{r}
+# Visualize
+fviz_cluster(km.res, data = my_data,
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+
+fviz_cluster(km.res, data = my_data,
+             palette = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07"), ellipse.type = "euclid", # Concentration ellipse
+             #star.plot = TRUE, # Add segments from centroids to items repel = TRUE, # Avoid label overplotting (slow)
+             ggtheme = theme_minimal()
+)
+```
+
+### PAM Clustering:
+http://www.sthda.com/english/articles/27-partitioning-clustering-essentials/88-k-medoids-essentials/
+
+#### Estimating the optimal number of clusters
+```{r}
+fviz_nbclust(my_data, pam, method = "silhouette")+
+theme_classic()
+```
+
+
+```{r}
+# Compute PAM
+pam.res <- pam(my_data, 2)
+pam.res
+```
+
+
+```{r}
+# Visualize
+fviz_cluster(pam.res)
+```
+
+
+
+
