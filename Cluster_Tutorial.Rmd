@@ -6,6 +6,9 @@ library(ggplot2)
 library("cluster")
 library("factoextra")
 library("magrittr")
+library("clustertend") # Checks whether data set has tendency for clustering
+library("NbClust") # Determine the number of clusters to be used in Kmeans clustering
+library(fpc) # for computing clustering validation statistics
 ```
 
 ```{r}
@@ -36,11 +39,18 @@ within a data set, into multiple groups based on their similarity
 ### K Means Clustering:
 http://www.sthda.com/english/articles/27-partitioning-clustering-essentials/87-k-means-clustering-essentials/
 
+1. Specify the number of clusters (K) to be created (by the analyst)
+2. Selectrandomlykobjectsfromthedatasetastheinitialclustercentersormeans
+3. Assigns each observation to their closest centroid, based on the Euclidean distance between the object and the centroid
+4. For each of the k clusters update the cluster centroid by calculating the new mean values of all the data points in the cluster. The centoid of a Kth cluster is a vector of length p containing the means of all variables for the observations in the kth cluster; p is the number of variables.
+5. Iteratively minimize the total within sum of square. That is, iterate steps 3 and 4 until the cluster assignments stop changing or the maximum number of iterations is reached. By default, the R software uses 10 as the default value for the maximum number of iterations.
+
 #### Determining the ultimate number of clusters
 ```{r}
 fviz_nbclust(my_data, kmeans, method = "wss")
 ```
-
+define clusters such that the total intra-cluster variation [or total within-cluster sum of square (WSS)] is minimized. The total WSS measures the
+compactness of the clustering and we want it to be as small as possible.
 ```{r}
 set.seed(123)
 km.res <- kmeans(my_data, 4, nstart = 25)
@@ -82,6 +92,203 @@ pam.res
 # Visualize
 fviz_cluster(pam.res)
 ```
+
+## Hierarchical clustering
+
+#### Agglomerative Clustering
+Agglomerative clustering works in a “bottom-up” manner. That is, each object is initially considered as a single-element cluster (leaf). At each step of the algorithm, the two clusters that are the most similar are combined into a new bigger cluster
+(nodes). This procedure is iterated until all points are member of just one single big cluster (root)
+
+1. Preparing the data
+2. Computing (dis)similarity information between every pair of objects in the data set.
+3. Using linkage function to group objects into hierarchical cluster tree, based on the distance information generated at step. Objects/clusters that are in close proximity are linked together using the linkage function.
+4. Determining where to cut the hierarchical tree into clusters. This creates a partition of the data.
+
+```{r}
+# Standardize the data
+df <- scale(USArrests)
+
+# Compute the dissimilarity matrix
+
+res.dist <- dist(df, method = "euclidean")
+
+as.matrix(res.dist)[1:6, 1:6]
+```
+
+```{r}
+#function hclust() can be used to create the hierarchical tree
+res.hc <- hclust(d = res.dist, method = "ward.D2")
+
+fviz_dend(res.hc, cex = 0.5)
+```
+
+```{r}
+# Cut tree into 4 groups
+grp <- cutree(res.hc, k = 4) 
+head(grp, n = 4)
+```
+```{r}
+#  Number of members in each cluster
+table(grp)
+```
+
+```{r}
+# Cut in 4 groups and color by groups 
+fviz_dend(res.hc, k = 4, # Cut in four groups
+          cex = 0.5, # label size
+          k_colors = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07"), color_labels_by_k = TRUE, # color labels by groups
+          rect = TRUE # Add rectangle around groups
+)
+```
+
+```{r}
+fviz_cluster(list(data = df, cluster = grp),
+             palette = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07"), 
+             ellipse.type = "convex", # Concentration ellipse
+             repel = TRUE, # Avoid label overplotting (slow) 
+             show.clust.cent = FALSE, ggtheme = theme_minimal())
+```
+
+## Assessing Clustering Tendency
+
+```{r}
+# Iris data set
+df <- iris[, -5]
+# Random data generated from the iris data set 
+random_df <- apply(df, 2,
+                   function(x){runif(length(x), min(x), (max(x)))}) 
+
+random_df <- as.data.frame(random_df)
+# Standardize the data sets
+df <- iris.scaled <- scale(df) 
+random_df <- scale(random_df)
+```
+
+#### Visual inspection of the data
+```{r}
+# As the data contain more than two variables, we need to reduce the dimensionality in order to plot a scatter plot.
+fviz_pca_ind(prcomp(df), title = "PCA - Iris data",
+             habillage = iris$Species, palette = "jco", 
+             geom = "point", 
+             ggtheme = theme_classic(), 
+             legend = "bottom")
+
+# Plot the random df
+fviz_pca_ind(prcomp(random_df), 
+             title = "PCA - Random data", 
+             geom = "point", 
+             ggtheme = theme_classic())
+```
+
+#### Why clustering tendency
+```{r}
+# K-means on iris dataset
+km.res1 <- kmeans(df, 3)
+fviz_cluster(list(data = df, cluster = km.res1$cluster),
+             ellipse.type = "norm", geom = "point", 
+             stand = FALSE, palette = "jco", 
+             ggtheme = theme_classic())
+
+# K-means on the random dataset
+km.res2 <- kmeans(random_df, 3)
+fviz_cluster(list(data = random_df, cluster = km.res2$cluster),
+ellipse.type = "norm", geom = "point", stand = FALSE, palette = "jco", ggtheme = theme_classic())
+
+# Hierarchical clustering on the random dataset
+fviz_dend(hclust(dist(random_df)), k = 3, k_colors = "jco", as.ggplot = TRUE, show_labels = FALSE)
+```
+It can be seen that the k-means algorithm and the hierarchical clustering impose 
+a classification on the random uniformly distributed data set even if there are 
+no meaningful clusters present in it. This is why, clustering tendency assessment 
+methods should be used to evaluate the validity of clustering analysis. 
+That is, whether a given data set contains meaningful clusters.
+
+
+#### METHODS FOR ASSESSING CLUSTERING TENDENCY
+If the value of Hopkins statistic is close to zero, then we can reject the null 
+hypothesis and conclude that the dataset D is significantly a clusterable data.
+
+```{r}
+# Compute Hopkins statistic for iris dataset 
+set.seed(123)
+hopkins(df, n = nrow(df)-1);
+# Compute Hopkins statistic for a random dataset
+set.seed(123)
+hopkins(random_df, n = nrow(random_df)-1)
+```
+It can be seen that the iris data set is highly clusterable (the H value = 0.18 which is far below the threshold 0.5). However the random_df data set is not clusterable
+(H = 0.50)
+
+#### VAT: Visual Assessment of cluster Tendency
+The algorithm of VAT is as follow:
+Compute the dissimilarity (DM) matrix between the objects in the dataset using Euclidean distance measure
+Reorder the DM so that similar objects are close to one another. 
+This process create an ordered dissimilarity matrix (ODM)
+The ODM is displayed as an ordered dissimilarity image (ODI), which is the visual output of VAT
+```{r}
+fviz_dist(dist(df), 
+          show_labels = FALSE)+ 
+  labs(title = "Iris data")
+
+fviz_dist(dist(random_df), 
+          show_labels = FALSE)+ 
+  labs(title = "Random data")
+```
+It can be seen that the random_df dataset doesn’t contain any evident clusters.
+
+## Determining the Optimal Number of Clusters
+
+#### The Elbow method
+The Elbow method looks at the total WSS as a function of the number of clusters: One should choose a number of clusters so that adding another cluster doesn’t improve much better the total WSS
+```{r}
+# Elbow method
+fviz_nbclust(my_data, kmeans, method = "wss") + 
+  geom_vline(xintercept = 4, linetype = 2)+
+  labs(subtitle = "Elbow method")
+```
+
+#### The average silhouette approach
+The average silhouette approach measures the quality of a clustering. 
+That is, it determines how well each object lies within its cluster. 
+A high average silhouette width indicates a good clustering.
+
+1. Compute clustering algorithm (e.g., k-means clustering) for different values of k. 
+For instance, by varying k from 1 to 10 clusters.
+2. For each k, calculate the average silhouette of observations (avg.sil). 
+3. Plot the curve of avg.sil according to the number of clusters k.
+4. The location of the maximum is considered as the appropriate number of clusters.
+```{r}
+# Silhouette method
+fviz_nbclust(my_data, kmeans, method = "silhouette")+ 
+  labs(subtitle = "Silhouette method")
+```
+
+#### Gap statistic method
+```{r}
+# Gap statistic
+# nboot = 50 to keep the function speedy.
+# recommended value: nboot= 500 for your analysis.
+# Use verbose = FALSE to hide computing progression.
+set.seed(123)
+fviz_nbclust(my_data, kmeans, nstart = 25, method = "gap_stat", nboot = 500)+
+labs(subtitle = "Gap statistic method")
+```
+
+#### NbClust() function: 30 indices for choosing the best number of clusters
+```{r}
+nb <- NbClust(my_data, distance = "euclidean", min.nc = 2,
+        max.nc = 10, method = "kmeans")
+fviz_nbclust(nb)
+```
+
+## Cluster Validation
+
+#### Internal measures for cluster validation
+
+
+
+
+
 
 
 

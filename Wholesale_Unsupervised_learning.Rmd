@@ -164,46 +164,35 @@ ggplot(data = stack(log_data), aes(x=ind, y = values))+
 ```
 
 
-```{r}
-#Dropping the Outliers
-good_data
-```
-
-
 ##### PCA 
 
 ```{r}
-# Use only 30 rows now
-test_data <- data[1:30,]
+pca <- PCA(log_data, graph = FALSE, ncp =6)
+eig.val <- get_eigenvalue(pca)
+fviz_eig(pca, addlabels = TRUE, ylim = c(0, 50))
 ```
-
-
+Dimensions 1 and 2 explain almost 70% of the variation in the data
 ```{r}
-res.pca <- prcomp(test_data, scale = TRUE)
-fviz_eig(res.pca)
-```
-
-
-```{r}
-fviz_pca_ind(res.pca,
-             col.ind = "cos2", # Color by the quality of representation
-             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-             repel = TRUE     # Avoid text overlapping
-             )
+pca
 ```
 
 ```{r}
-fviz_pca_var(res.pca,
-             col.var = "contrib", # Color by contributions to the PC
-             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-             repel = TRUE     # Avoid text overlapping
-             )
+var <- get_pca_var(pca)
+var
 ```
 
 ```{r}
-fviz_pca_biplot(res.pca, repel = TRUE,
-                col.var = "#2E9FDF", # Variables color
-                col.ind = "#696969"  # Individuals color
-                )
+fviz_pca_var(pca, col.var = "black")
 ```
+> Dimension 1: Milk, Grocery, Detergents_Paper
+> Dimension 2: Fresh, Frozen, Delicassen
+
+```{r}
+as.data.frame(pca$ind)[1:4,][,1:6]
+```
+
+
+
+
+
 
