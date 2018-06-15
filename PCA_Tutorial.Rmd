@@ -7,6 +7,7 @@ http://www.sthda.com/english/articles/31-principal-component-methods-in-r-practi
 library("FactoMineR")
 library("factoextra")
 library(corrplot)
+library(ggplot2)
 ```
 
 ```{r}

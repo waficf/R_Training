@@ -19,6 +19,7 @@ library(rpart) # Fancy decisionmaking plots
 library(rpart.plot) # Draw tree
 library(GGally)
 library(factoextra) # PCA Cluster
+library("clustertend") # Checks whether data set has tendency for clustering
 ```
 
 
@@ -163,23 +164,19 @@ ggplot(data = stack(log_data), aes(x=ind, y = values))+
   geom_boxplot()
 ```
 
-
-##### PCA 
+## PCA 
 
 ```{r}
-pca <- PCA(log_data, graph = FALSE, ncp =6)
+pca <- PCA(log_data, graph = FALSE, ncp = 6)
+pca$var$coord
+```
+
+
+```{r}
 eig.val <- get_eigenvalue(pca)
 fviz_eig(pca, addlabels = TRUE, ylim = c(0, 50))
 ```
 Dimensions 1 and 2 explain almost 70% of the variation in the data
-```{r}
-pca
-```
-
-```{r}
-var <- get_pca_var(pca)
-var
-```
 
 ```{r}
 fviz_pca_var(pca, col.var = "black")
@@ -191,8 +188,44 @@ fviz_pca_var(pca, col.var = "black")
 as.data.frame(pca$ind)[1:4,][,1:6]
 ```
 
+In the code block below, you will need to implement the following:
+Assign the results of fitting PCA in two dimensions with good_data to pca.
+Apply a PCA transformation of good_data using pca.transform, and assign the reuslts to reduced_data.
+Apply a PCA transformation of the sample log-data log_samples using pca.transform, and assign the results to pca_samples.
+```{r}
+pca_2 <- PCA(log_data, graph = FALSE, ncp =2)
+as.data.frame(pca_2$ind)[1:3,][,1:2]
+```
 
+```{r}
+pca_2$var$contrib
+```
 
+```{r}
+# Contributions of variables to PC1
+fviz_contrib(pca_2, choice = "var", axes = 1, top = 10)
+# Contributions of variables to PC2
+fviz_contrib(pca_2, choice = "var", axes = 2, top = 10)
+```
 
+## K-means Clustering
 
+```{r}
+# Converting values into dataframe to use PC1 and PC2 in clustering algorithm
+pca_data <- as.data.frame(pca_2$ind)[,1:2]
+```
+
+```{r}
+fviz_nbclust(pca_data, kmeans, method = "silhouette")+
+theme_classic()
+```
+
+```{r}
+set.seed(123)
+km.res <- kmeans(pca_data, 2, nstart = 25)
+fviz_cluster(km.res, data = pca_data,
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+```
 
